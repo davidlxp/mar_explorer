@@ -1,5 +1,14 @@
-import streamlit.web.bootstrap as bootstrap
-from app import app
+# ------------------------------
+# Project entry point
+# Run: streamlit run main.py
+# ------------------------------
 
-if __name__ == "__main__":
-    bootstrap.run(app.__file__, "", [], [])
+import os
+import sys
+
+# Add the project root to Python path
+project_root = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, project_root)
+
+# Import your Streamlit app code
+from app.app import *
