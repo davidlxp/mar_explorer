@@ -1,0 +1,6 @@
+streamlit
+duckdb==0.10.2
+pandas
+openpyxl
+numpy
+sentence-transformers
