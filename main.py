@@ -3,12 +3,40 @@
 # Run: streamlit run main.py
 # ------------------------------
 
-import os
-import sys
+# import os
+# import sys
 
-# Add the project root to Python path
-project_root = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, project_root)
+# # Add the project root to Python path
+# project_root = os.path.dirname(os.path.abspath(__file__))
+# sys.path.insert(0, project_root)
 
-# Import your Streamlit app code
-from app.app import *
+# # Import your Streamlit app code
+# from app.app import *
+
+from services import task_handle_mar
+from services.db import Database
+
+db = Database()
+
+if __name__ == "__main__":
+    the_file = "storage/raw_files/mar_files/tw-historical-adv-and-day-count-through-august-2025.xlsx"
+    task_handle_mar.handle_mar_update(the_file)
+
+    test_query = """
+        SELECT * 
+        FROM mar_volume_m 
+        WHERE asset_class = 'rates' 
+            AND product = 'cash'
+            AND year = 2025
+            AND month = 1
+        LIMIT 10
+    """
+
+    test_query2 = """
+        SELECT count(*)
+        FROM mar_adv_m 
+    """
+
+    # Create a simple test query
+    df = db.fetchdf(test_query2)
+    print(df)
