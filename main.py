@@ -13,30 +13,31 @@
 # # Import your Streamlit app code
 # from app.app import *
 
+
+
 from services import task_handle_mar
 from services.db import Database
+from services import task_handle_pr
 
 db = Database()
 
 if __name__ == "__main__":
-    the_file = "storage/raw_files/mar_files/tw-historical-adv-and-day-count-through-august-2025.xlsx"
-    task_handle_mar.handle_mar_update(the_file)
 
-    test_query = """
-        SELECT * 
-        FROM mar_volume_m 
-        WHERE asset_class = 'rates' 
-            AND product = 'cash'
-            AND year = 2025
-            AND month = 1
-        LIMIT 10
-    """
 
-    test_query2 = """
-        SELECT count(*)
-        FROM mar_adv_m 
-    """
 
-    # Create a simple test query
-    df = db.fetchdf(test_query2)
-    print(df)
+    task_handle_pr.fetch_press_release()
+
+
+    # the_file = "storage/raw_files/mar_files/tw-historical-adv-and-day-count-through-august-2025.xlsx"
+    # task_handle_mar.handle_mar_update(the_file)
+
+    
+
+    # test_query2 = """
+    #     SELECT count(*)
+    #     FROM mar_adv_m 
+    # """
+
+    # # Create a simple test query
+    # df = db.fetchdf(test_query2)
+    # print(df)

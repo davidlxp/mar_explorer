@@ -1,6 +1,6 @@
-from services.db import get_con
+from services.db import Database
 
-def log_question(question, confidence, citations):
-    con = get_con()
-    con.execute("INSERT INTO logs (question, confidence, citations) VALUES (?, ?, ?)",
-                [question, confidence, str(citations)])
+# def log_question(question, confidence, citations):
+#     con = get_con()
+#     con.execute("INSERT INTO logs (question, confidence, citations) VALUES (?, ?, ?)",
+#                 [question, confidence, str(citations)])
