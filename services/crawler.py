@@ -5,8 +5,17 @@ import asyncio
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig
 from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
 from crawl4ai.content_filter_strategy import PruningContentFilter
+import os
+import logging
 
 import services.helper as helper
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 async def crawl_one(
     url: str,
@@ -160,3 +169,32 @@ async def crawl_many(urls: list[str], **kwargs) -> dict[str, str]:
         else:
             out[u] = r
     return out
+
+def download_file(url: str, dest_dir: str, file_name: str = None, chunk_size: int = 8192):
+    """
+    Downloads file from the given URL and saves it to dest_path.
+    Uses streaming so as not to load entire file into memory.
+    """
+    logger.info(f"Downloading file from {url} to {dest_dir}")
+    resp = requests.get(url, stream=True)
+    resp.raise_for_status()  # raises exception for HTTP errors
+
+    # Create the destination directory
+    os.makedirs(dest_dir, exist_ok=True)
+
+    # Create the destination file path
+    if file_name is None:
+        file_name = url.split("/")[-1]
+    file_path = os.path.join(dest_dir, file_name)
+
+    # Write the file
+    try:
+        with open(file_path, "wb") as f:
+            for chunk in resp.iter_content(chunk_size=chunk_size):
+                if chunk:  # filter out keep-alive chunks
+                    f.write(chunk)
+        logger.info(f"Downloaded file to {file_path}")
+    except Exception as e:
+        raise RuntimeError(f"Failed to download file: {e}")
+
+    return file_path

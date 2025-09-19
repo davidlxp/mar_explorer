@@ -3,6 +3,11 @@ from services.db import Database
 import requests
 from bs4 import BeautifulSoup
 
+EXCLUDE_HEADERS = [
+    "Media Contacts",
+    "Market and Industry Data",
+    "Forward-Looking Statements",
+]
 
 
 # def handle_pr_upload(file):
@@ -17,18 +22,16 @@ from bs4 import BeautifulSoup
 #     for i, (chunk, emb) in enumerate(zip(chunks, embeddings)):
 #         con.execute("INSERT INTO pr_index VALUES (?, ?, ?)", [i, chunk, emb.tolist()])
 
+URL = "https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-may-2025-total-trading-volume-of--$55.4-trillion-and-average-daily-volume-of-$2.5-trillion"
 
 
-def fetch_press_release():
+def fetch_press_release(url: str) -> str:
 
-    url = "https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-august-2025-total-trading-volume-of--$54.1-trillion-and-average-daily-volume-of-$2.5-trillion"
-    html = requests.get(url).text
-    soup = BeautifulSoup(html, "html.parser")
+    
+    
 
-    # print(html)
 
-    print(soup.find_all("p"))
+    
 
-    # paragraphs = [p.get_text(strip=True) for p in soup.find_all("p")]
-    # text = "\n\n".join(paragraphs)
-    # print(text)
+
+
