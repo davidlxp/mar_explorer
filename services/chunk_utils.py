@@ -45,7 +45,7 @@ def split_into_chunks(lines: list[str],
         Limitation:
             Currently, it can't handle if a tag_content itself exceeds the max_token_count. But in most case, we shouldn't have this problem.
     '''
-    lines = lines.copy()
+    lines = lines.deepcopy()
 
     # Regularize the tag_content
     tag_content = tag_content if tag_content else ""
@@ -139,7 +139,7 @@ def split_into_chunks(lines: list[str],
         chunks.append("\n".join(curr_chunk))
 
     return chunks
-    
+
 
 def split_text_by_token_limit_BRUTE(text: str, model_name: str, max_tokens: int, overlap: int = 0):
     """
