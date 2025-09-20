@@ -6,31 +6,33 @@
 import duckdb
 import pathlib
 from typing import Optional
+from pathlib import Path
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 DB_PATH = pathlib.Path("storage/mar_explorer.duckdb")
+MIGRATIONS_DIR = pathlib.Path("services/migrations/duckdb")
 
 class Database:
     def __init__(self, db_path: str = DB_PATH):
         self.con = duckdb.connect(str(db_path))
-        self._init_schema()
-
-    def _init_schema(self): 
-        # Create tables if they don’t already exist
-        self.con.execute("""
-        CREATE TABLE IF NOT EXISTS logs (
-            ts TIMESTAMP DEFAULT current_timestamp,
-            question TEXT,
-            confidence FLOAT,
-            citations TEXT
-        );
-        """)
-        self.con.execute("""
-        CREATE TABLE IF NOT EXISTS pr_index (
-            id INTEGER,
-            text TEXT,
-            embedding FLOAT[1536]
-        );
-        """)
+    
+    def _run_migrations(self):
+        '''
+            Run all .sql migrations in order.
+        '''
+        migrations = sorted(Path(MIGRATIONS_DIR).glob("*.sql"))
+        for sql_file in migrations:
+            logger.info(f"Running migration: {sql_file}")
+            with open(sql_file, "r") as f:
+                sql = f.read()
+                self.con.execute(sql)
 
     def run_query(self, query: str, params: Optional[tuple] = None):
         '''

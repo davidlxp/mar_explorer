@@ -158,7 +158,7 @@ def update_db_with_latest_mar():
     # Load files to tables according to the mappings
     for file_name, table_name in MAR_FILE_TO_TABLE_MAPPINGS.items():
         db.run_query(f"""
-            CREATE OR REPLACE VIEW {table_name} AS
+            CREATE OR REPLACE TABLE {table_name} AS
             SELECT *
             FROM read_parquet('{latest_files_path}/{file_name}');
         """)

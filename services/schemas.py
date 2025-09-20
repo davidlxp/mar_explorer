@@ -21,16 +21,3 @@ MAR_TRADE_DAYS_M_SCHEMA = {
     "month": "int32",
     "trade_days": "float64",
 }
-
-PR_SCHEMA = {
-    "id": "int32",
-    "text": "string",
-    "embedding": "object",  # store as Python object (list of floats)
-}
-
-LOG_SCHEMA = {
-    "ts": "datetime64[ns]",
-    "question": "string",
-    "confidence": "float64",
-    "citations": "string",
-}

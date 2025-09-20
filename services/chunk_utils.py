@@ -3,6 +3,7 @@ import tiktoken
 import re
 import logging
 import spacy
+import copy
 
 # Configure logging
 logging.basicConfig(
@@ -45,7 +46,7 @@ def split_into_chunks(lines: list[str],
         Limitation:
             Currently, it can't handle if a tag_content itself exceeds the max_token_count. But in most case, we shouldn't have this problem.
     '''
-    lines = lines.deepcopy()
+    lines = copy.deepcopy(lines)
 
     # Regularize the tag_content
     tag_content = tag_content if tag_content else ""

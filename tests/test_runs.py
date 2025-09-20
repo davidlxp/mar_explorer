@@ -37,6 +37,15 @@ def test_run_mar_update():
     the_file = "storage/raw_files/mar_files/tw-historical-adv-and-day-count-through-august-2025.xlsx"
     task_mar.handle_mar_update(the_file)
 
+def test_run_query_pr_index():
+    logger.info("Running test_run_query_pr_index")
+    test_query2 = """
+        SELECT *
+        FROM pr_index 
+    """
+    df = db.fetchdf(test_query2)
+    print(df)
+
 def test_run_query1():
     logger.info("Running test_run_query1")
     test_query2 = """
@@ -44,6 +53,14 @@ def test_run_query1():
         FROM mar_adv_m 
     """
     df = db.fetchdf(test_query2)
+    print(df)
+
+def test_run_print_all_tables():
+    logger.info("Running test_run_print_all_tables")
+    test_query1 = """
+        SHOW TABLES;
+    """
+    df = db.fetchdf(test_query1)
     print(df)
 
 # def test_run_crawler_one():

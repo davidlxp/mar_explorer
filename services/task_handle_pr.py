@@ -10,6 +10,8 @@ import hashlib
 import json
 import re
 from datetime import datetime
+import copy
+
 from services.constants import *
 import services.chunk_utils as chunk_utils
 
@@ -28,7 +30,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# def handle_pr_upload(file):
+# def handle_pr_embed_andupload(file):
 #     text = file.read().decode("utf-8", errors="ignore")
 #     chunks = [p.strip() for p in text.split("\n") if p.strip()]
 
@@ -79,10 +81,11 @@ def fetch_press_release(url: str) -> str:
 
     file_dir = 'storage/raw_files/pr_files/'
 
-    file_name = 'tradeweb_reports-monthly-2025_08'
+    # file_name = 'tradeweb_reports-monthly-2025_08'
+    # file_name = 'tradeweb_reports-monthly-2023_05'
     # file_name = 'tradeweb_reports-monthly-2019_02'
     # file_name = 'tradeweb_reports-quarterly-2025_q1'
-    # file_name = 'tradeweb_reports-yearly-2021'
+    file_name = 'tradeweb_reports-yearly-2021'
 
     file_path = f'{file_dir}{file_name}.md'
 
@@ -126,7 +129,7 @@ def try_rm_junk_part_for_pr(md_text: str) -> str:
 
     # :::::: Preparing Output :::::: #
 
-    out = lines.copy()
+    out = copy.deepcopy(lines)
 
     # Remove the tail part (MUST remove the TAIL before HEAD or running into index error!)
     if min_tail_rm_idx is not None:
@@ -218,50 +221,48 @@ def split_md_to_chunks_pr_m(md_text: str) -> str:
             idx_to_separate = i
             break
     
-    # The chunk for head is finalized
-    head_section = lines[:idx_to_separate]
-
-    # The section containing the content to be further separated
-    content_section = lines[idx_to_separate + 1:]
+    # Split the article into head and content section
+    if idx_to_separate is not None:
+        head_section = lines[:idx_to_separate]
+        content_section = lines[idx_to_separate + 1:]
+    else:
+        head_section = lines
+        content_section = None
 
     # Prepare to store the final output
     chunks_out = []
 
     # :::::: Handle Head Section :::::: #
 
-    # Combine every line in the head section to a single text
-    head_text = "\n".join(head_section)
+    if head_section is not None:
 
-    # Split the head section into chunks
-    head_chunks = chunk_utils.split_into_chunks(lines = [head_text], 
-                                                max_token_count = PR_DEFAULT_TOKEN_MAX_FOR_EMBEDDING, 
-                                                model_name = PR_DEFAULT_EMBEDDING_MODEL, 
-                                                tag_content = '',
-                                                tag_content_allowed_token = PR_DEFAULT_TAG_CONTENT_ALLOWED_TOKEN,
-                                                chunk_overlap_lines = PR_DEFAULT_CHUNK_OVERLAP_LINES)
-    
-    
-    # chunk_utils.split_text_by_token_limit(text = head_text, 
-    #                                     model_name = PR_DEFAULT_EMBEDDING_MODEL, 
-    #                                     max_tokens = PR_DEFAULT_TOKEN_MAX_FOR_EMBEDDING, 
-    #                                     overlap = PR_DEFAULT_LINE_SPLIT_OVERLAP)
-    chunks_out.extend(head_chunks)
+        # Split the head section into chunks
+        head_chunks = chunk_utils.split_into_chunks(lines = head_section, 
+                                                    max_token_count = PR_DEFAULT_TOKEN_MAX_FOR_EMBEDDING, 
+                                                    model_name = PR_DEFAULT_EMBEDDING_MODEL, 
+                                                    tag_content = '',
+                                                    tag_content_allowed_token = PR_DEFAULT_TAG_CONTENT_ALLOWED_TOKEN,
+                                                    chunk_overlap_lines = PR_DEFAULT_CHUNK_OVERLAP_LINES)
+        
+        chunks_out.extend(head_chunks)
 
     # :::::: Handle Content Section :::::: #
 
-    # Turn the content section into blocks
-    parents, children_groups = turn_md_into_blocks_pr('\n'.join(content_section))
-    
-    # Split the children into chunks
-    for i, children in enumerate(children_groups):
-        parent_tag = parents[i] + "\n"
-        curr_chunks = chunk_utils.split_into_chunks(lines = children, 
-                                                    max_token_count = PR_DEFAULT_TOKEN_MAX_FOR_EMBEDDING, 
-                                                    model_name = PR_DEFAULT_EMBEDDING_MODEL, 
-                                                    tag_content = parent_tag,
-                                                    tag_content_allowed_token = PR_DEFAULT_TAG_CONTENT_ALLOWED_TOKEN,
-                                                    chunk_overlap_lines = PR_DEFAULT_CHUNK_OVERLAP_LINES)
-        chunks_out.extend(curr_chunks)
+    if content_section is not None:
+
+        # Turn the content section into blocks
+        parents, children_groups = turn_md_into_blocks_pr('\n'.join(content_section))
+        
+        # Split the children into chunks
+        for i, children in enumerate(children_groups):
+            parent_tag = parents[i] + "\n"
+            curr_chunks = chunk_utils.split_into_chunks(lines = children, 
+                                                        max_token_count = PR_DEFAULT_TOKEN_MAX_FOR_EMBEDDING, 
+                                                        model_name = PR_DEFAULT_EMBEDDING_MODEL, 
+                                                        tag_content = parent_tag,
+                                                        tag_content_allowed_token = PR_DEFAULT_TAG_CONTENT_ALLOWED_TOKEN,
+                                                        chunk_overlap_lines = PR_DEFAULT_CHUNK_OVERLAP_LINES)
+            chunks_out.extend(curr_chunks)
         
     return chunks_out
 
@@ -279,9 +280,6 @@ def parse_pr_m(file_path: str) -> str:
         print(chunk)
         print("\n\n")
         print("="*100)
-
-    # print(md_raw)
-    # print(md_raw.splitlines()
 
 
 def get_report_type(url: str) -> str:
