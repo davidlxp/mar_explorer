@@ -7,8 +7,10 @@ from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
 from crawl4ai.content_filter_strategy import PruningContentFilter
 import os
 import logging
+import hashlib
 
 import services.helper as helper
+import services.utils as utils
 
 # Configure logging
 logging.basicConfig(
@@ -29,6 +31,7 @@ async def crawl_one(
     threshold_type: str = 'fixed',
     word_count_threshold: int = 10,
     remove_overlay_elements: bool = True,
+    headless: bool = True,
     verbose_browser: bool = False,
 ) -> dict:
     '''
@@ -68,7 +71,8 @@ async def crawl_one(
     # :::::: Crawler Setttings :::::: #
 
     # 1. Browser config
-    browser_cfg = BrowserConfig(verbose=verbose_browser)  # headless by default
+    browser_cfg = BrowserConfig(headless = headless, 
+                                verbose = verbose_browser)  # headless by default
 
     # 2. Create content filter only when use_fit_markdown is True
     # Warning: If you don't know what you are doing, you can easily remove important content.
@@ -132,9 +136,6 @@ async def crawl_one(
     # 4. Also cleaned HTML if needed
     cleaned_html = result.cleaned_html
 
-    print(internal_links)
-    print(raw_md)
-
     return {
         "raw_markdown": raw_md,
         "fit_markdown": fit_md,
@@ -196,5 +197,50 @@ def download_file(url: str, dest_dir: str, file_name: str = None, chunk_size: in
         logger.info(f"Downloaded file to {file_path}")
     except Exception as e:
         raise RuntimeError(f"Failed to download file: {e}")
+
+    return file_path
+
+def crawl_and_save_markdown(url: str, 
+                            file_dir: str, 
+                            file_name_strategy: str = 'url', 
+                            user_defined_file_name: str = None):
+    '''
+        Crawl a single URL and save the markdown content to a file.
+
+        Args:
+            url: The URL to crawl
+            file_dir: The directory to save the markdown file
+            file_name_strategy: The strategy for the file name. (Options: 'url_last_part', 'url_hash', 'customized')
+            user_defined_file_name: If file_name_strategy is 'customized', the file name must be provided.
+    '''
+    # Regularize the URL
+    url = utils.regularize_url(url)
+
+    # Check to enforce providing file_name
+    if file_name_strategy == 'customized' and file_name is None:
+        raise ValueError("If file_name_strategy is 'customized', file_name must be provided.")
+
+    # Create the file name
+    if file_name_strategy == 'url_last_part':
+        file_name = url.split("/")[-1]
+    elif file_name_strategy == 'url_hash':
+        file_name = hashlib.sha256(url.encode()).hexdigest()
+    elif file_name_strategy == 'customized':
+        file_name = user_defined_file_name
+    else:
+        raise ValueError(f"Invalid file_name_strategy: {file_name_strategy}")
+
+    # Crawl the site 
+    result = asyncio.run(crawl_one(url))
+    md_raw = result['raw_markdown']
+
+    # Store file
+    os.makedirs(file_dir, exist_ok=True)
+
+    # Create the file path
+    file_path = f'{file_dir}{file_name}.md'
+
+    utils.write_file(md_raw, file_path)
+    logger.info(f"Saved markdown from {url} to {file_path}")
 
     return file_path

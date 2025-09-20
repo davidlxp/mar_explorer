@@ -44,3 +44,35 @@ def enforce_schema(df, schema, strict=True):
                 logger.error(f"Could not cast column {col} to {dtype}: {e}")
                 raise
     return df
+
+def write_file(text: str, file_path: str):
+    '''
+      Write text to a file.
+    '''
+    with open(file_path, 'w') as f:
+        f.write(text)
+    logger.info(f"Wrote text to {file_path}")
+    return file_path
+
+def read_file(file_path: str) -> str:
+    '''
+      Read text from a file.
+    '''
+    with open(file_path, 'r') as f:
+        return f.read()
+    return text
+
+def regularize_url(url: str) -> str:
+    '''
+      Regularize the URL.
+    '''
+    if url.endswith("/"):
+        url = url[:-1]
+    return url
+
+def get_url_last_part(url: str) -> str:
+    '''
+      Get the last part of the URL.
+    '''
+    url = regularize_url(url)
+    return url.split("/")[-1]
