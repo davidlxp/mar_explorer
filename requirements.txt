@@ -2,9 +2,12 @@ streamlit
 duckdb==0.10.2
 pandas
 openpyxl
-numpy
+numpy==1.26.4
 sentence-transformers
 bs4
 crawl4ai                    # for crawling
 playwright>=1.45.0          # for crawling
 mistletoe                   # for markdown parsing
+tiktoken                    # for tokenizing
+spacy==3.7.4                # for sentence splitting
+thinc==8.2.5                # for sentence splitting    

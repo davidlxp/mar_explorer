@@ -3,7 +3,10 @@
 # ------------------------------
 
 import pandas as pd
+import tiktoken
 import logging
+import re
+from services.constants import *
 
 logger = logging.getLogger(__name__)
 
@@ -76,3 +79,12 @@ def get_url_last_part(url: str) -> str:
     '''
     url = regularize_url(url)
     return url.split("/")[-1]
+
+def get_token_count(text: str, model_name: str = DEFAULT_EMBEDDING_MODEL) -> int:
+    '''
+      Get the token count of the text.
+    '''
+    encoding = tiktoken.encoding_for_model(model_name)
+    tokens = encoding.encode(text)
+    
+    return len(tokens)

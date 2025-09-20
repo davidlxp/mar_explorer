@@ -80,5 +80,7 @@ def test_run_fetch_press_release():
     # url = 'https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-first-quarter-2025-financial-results/'
     # url = 'https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-fourth-quarter-and-full-year-2021-financial-results/'
     # url = 'https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-february-2019-trade-volume/'
+    # url = 'https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-september-2021-total-volume-of-$21.7-trillion-and-average-daily-volume-of-$1.02-trillion'
+    # url = 'https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-may-2023-total-trading-volume-of-$29.4-trillion-and-average-daily-volume-of-$1.35-trillion'
     logger.info("Running test_run_fetch_press_release")
     task_pr.fetch_press_release(url)

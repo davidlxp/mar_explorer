@@ -217,12 +217,12 @@ def crawl_and_save_markdown(url: str,
     url = utils.regularize_url(url)
 
     # Check to enforce providing file_name
-    if file_name_strategy == 'customized' and file_name is None:
+    if file_name_strategy == 'customized' and user_defined_file_name is None:
         raise ValueError("If file_name_strategy is 'customized', file_name must be provided.")
 
     # Create the file name
     if file_name_strategy == 'url_last_part':
-        file_name = url.split("/")[-1]
+        file_name = utils.get_url_last_part(url)
     elif file_name_strategy == 'url_hash':
         file_name = hashlib.sha256(url.encode()).hexdigest()
     elif file_name_strategy == 'customized':
