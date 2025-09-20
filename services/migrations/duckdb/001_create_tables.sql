@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS pr_index (
     id INTEGER PRIMARY KEY,
     url TEXT,
     file_name TEXT,
-    type TEXT,
+    file_type TEXT,
     year INTEGER,
     month INTEGER,
     quarter INTEGER,

@@ -14,10 +14,7 @@ import copy
 
 from services.constants import *
 import services.chunk_utils as chunk_utils
-
-from mistletoe import Document
-from mistletoe.block_token import Heading, Paragraph, List
-from mistletoe.ast_renderer import ASTRenderer
+from services.embeddings import get_embedder
 
 
 import services.utils as utils
@@ -30,17 +27,36 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# def handle_pr_embed_andupload(file):
-#     text = file.read().decode("utf-8", errors="ignore")
-#     chunks = [p.strip() for p in text.split("\n") if p.strip()]
+def handle_pr_embed_and_upload(chunks, url, file_name, file_type, year, month, quarter):
 
-#     model = SentenceTransformer("all-MiniLM-L6-v2")
-#     embeddings = model.encode(chunks)
+    # --- 2. Compute embeddings ---
+    embeddings = get_embedder()(chunks)
 
-#     con = get_con()
-#     con.execute("DELETE FROM pr_index;")
-#     for i, (chunk, emb) in enumerate(zip(chunks, embeddings)):
-#         con.execute("INSERT INTO pr_index VALUES (?, ?, ?)", [i, chunk, emb.tolist()])
+    print(embeddings)
+
+    # # --- 3. Insert into DB ---
+    # con = get_con()
+    # create_schema(con)
+
+    # for i, (chunk, emb) in enumerate(zip(chunks, embeddings)):
+    #     con.execute(
+    #         """
+    #         INSERT INTO pr_index
+    #         (url, file_name, type, year, month, quarter, chunk_index, content, emb)
+    #         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    #         """,
+    #         [
+    #             url,
+    #             file_name,
+    #             doc_type,
+    #             year,
+    #             month,
+    #             quarter,
+    #             i,
+    #             chunk,
+    #             emb.astype(np.float32).tobytes(),  # store as blob
+    #         ]
+    #     )
 
 
 def fetch_press_release(url: str) -> str:

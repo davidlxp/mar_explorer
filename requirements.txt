@@ -11,3 +11,4 @@ mistletoe                   # for markdown parsing
 tiktoken                    # for tokenizing
 spacy==3.7.4                # for sentence splitting
 thinc==8.2.5                # for sentence splitting    
+openai

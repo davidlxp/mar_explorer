@@ -43,3 +43,6 @@ pytest_cache/
 # macOS / Windows
 .DS_Store
 Thumbs.db
+
+# Environment variables
+.env
