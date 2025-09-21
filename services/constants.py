@@ -3,6 +3,13 @@
 # Description: Constants for the services
 # ------------------------------
 
+# :::::: Provider Related :::::: #
+
+DB_PROVIDER = "snowflake"
+EMBED_PROVIDER = "openai"
+
+# :::::: EMBED Related :::::: #
+
 # The folder path for the MAR files
 MAR_FILES_FOLDER_PATH_STR = "storage/snapshots/mar"
 

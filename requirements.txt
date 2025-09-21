@@ -13,3 +13,4 @@ spacy==3.7.4                # for sentence splitting
 thinc==8.2.5                # for sentence splitting    
 openai
 pinecone-client>=2.2.0
+snowflake-connector-python

@@ -28,17 +28,17 @@ CREATE TABLE IF NOT EXISTS mar_trade_days_m (
     trade_days DOUBLE
 );
 
--- Create pr_index table
-CREATE TABLE IF NOT EXISTS pr_index (
-    id VARCHAR PRIMARY KEY,
-    url TEXT,
-    report_name TEXT,
-    report_type TEXT,
-    year INTEGER,
-    month INTEGER,
-    quarter INTEGER,
-    chunk_index INTEGER,
-    content TEXT,
-    emb BLOB,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- -- Create pr_index table
+-- CREATE TABLE IF NOT EXISTS pr_index (
+--     id VARCHAR PRIMARY KEY,
+--     url TEXT,
+--     report_name TEXT,
+--     report_type TEXT,
+--     year INTEGER,
+--     month INTEGER,
+--     quarter INTEGER,
+--     chunk_index INTEGER,
+--     content TEXT,
+--     emb BLOB,
+--     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+-- );

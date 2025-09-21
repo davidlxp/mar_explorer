@@ -4,9 +4,10 @@ from typing import cast
 from .providers.base import EmbeddingsProvider
 from .providers.openai_embedder import embed_texts_openai
 from .providers.hf_embedder import embed_texts_hf
+from services.constants import EMBED_PROVIDER
 
 def get_embedder() -> EmbeddingsProvider:
-    provider = os.getenv("EMBED_PROVIDER", "openai")
+    provider = EMBED_PROVIDER.lower()
     if provider == "openai":
         return cast(EmbeddingsProvider, lambda texts: embed_texts_openai(texts))
     elif provider == "hf":

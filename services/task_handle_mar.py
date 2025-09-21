@@ -8,7 +8,7 @@ from datetime import datetime
 import os
 import duckdb
 from pathlib import Path
-from services.db import Database
+from services.db import get_database
 import logging
 from services.schemas import *
 from services.utils import enforce_schema
@@ -22,7 +22,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Instantiate DB object
-db = Database()
+db = get_database()
 
 # Supported MAR tabs to parse
 mar_tabs = MAR_SHEETS_TO_FILE_MAPPINGS.keys()

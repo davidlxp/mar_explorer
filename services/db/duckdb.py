@@ -1,5 +1,5 @@
 # ------------------------------
-# Module: db.py
+# Module: duckdb.py
 # Description: Database class for the services
 # ------------------------------
 
@@ -19,7 +19,9 @@ logger = logging.getLogger(__name__)
 DB_PATH = pathlib.Path("storage/mar_explorer.duckdb")
 MIGRATIONS_DIR = pathlib.Path("services/migrations/duckdb")
 
-class Database:
+from .base import Database
+
+class DuckDB(Database):
     def __init__(self, db_path: str = DB_PATH):
         self.con = duckdb.connect(str(db_path))
     
