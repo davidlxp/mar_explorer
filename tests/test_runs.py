@@ -19,7 +19,21 @@ db = Database()
 PR_URLs = [
     "https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-august-2025-total-trading-volume-of--$54.1-trillion-and-average-daily-volume-of-$2.5-trillion",
     "https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-july-2025-total-trading-volume-of--$55.0-trillion-and-average-daily-volume-of-$2.4-trillion",
+    "https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-second-quarter-2025-financial-results/"
+]
+
+PR_AND_NOISE_URLs = [
+    "https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-august-2025-total-trading-volume-of--$54.1-trillion-and-average-daily-volume-of-$2.5-trillion",
+    "https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-july-2025-total-trading-volume-of--$55.0-trillion-and-average-daily-volume-of-$2.4-trillion",
+    'https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-first-quarter-2025-financial-results/'
     "https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-second-quarter-2025-financial-results/",
+    'https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-fourth-quarter-and-full-year-2021-financial-results/',
+    'https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-february-2019-trade-volume/',
+    'https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-september-2021-total-volume-of-$21.7-trillion-and-average-daily-volume-of-$1.02-trillion',
+    'https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-may-2023-total-trading-volume-of-$29.4-trillion-and-average-daily-volume-of-$1.35-trillion',
+    "https://finance.yahoo.com/m/84348bcd-079b-34a6-b4ab-d9e84552d4fb/stocks-up-slightly-as.html",
+    'https://www.investing.com/news/stock-market-news/us-stock-futures-gain-after-wall-st-hits-new-peak-on-intel-surge-fed-cut-4246003',
+
 ]
 
 URL_MAR_DOMAIN = 'https://www.tradeweb.com/4a51d0/globalassets/newsroom/09.05.25-august-mar/tw-historical-adv-and-day-count-through-august-2025.xlsx'
@@ -90,14 +104,11 @@ def test_run_download_file():
     print(result)
 
 def test_run_fetch_press_release():
-    # url = PR_URLs[0]
-    url = "https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-august-2025-total-trading-volume-of--$54.1-trillion-and-average-daily-volume-of-$2.5-trillion"
-    # url = "https://finance.yahoo.com/m/84348bcd-079b-34a6-b4ab-d9e84552d4fb/stocks-up-slightly-as.html"
-    # url = 'https://www.investing.com/news/stock-market-news/us-stock-futures-gain-after-wall-st-hits-new-peak-on-intel-surge-fed-cut-4246003'
-    # url = 'https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-first-quarter-2025-financial-results/'
-    # url = 'https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-fourth-quarter-and-full-year-2021-financial-results/'
-    # url = 'https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-february-2019-trade-volume/'
-    # url = 'https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-september-2021-total-volume-of-$21.7-trillion-and-average-daily-volume-of-$1.02-trillion'
-    # url = 'https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-may-2023-total-trading-volume-of-$29.4-trillion-and-average-daily-volume-of-$1.35-trillion'
+    url = PR_URLs[0]
+    
     logger.info("Running test_run_fetch_press_release")
     task_pr.fetch_press_release(url)
+
+def test_run_fetch_many_press_releases():
+    logger.info("Running test_run_fetch_many_press_releases")
+    asyncio.run(task_pr.fetch_many_press_releases(PR_AND_NOISE_URLs))

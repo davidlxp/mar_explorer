@@ -59,53 +59,103 @@ def handle_pr_embed_and_upload(chunks, url, file_name, file_type, year, month, q
     #     )
 
 
-def fetch_press_release(url: str) -> str:
+async def fetch_many_press_releases(urls: list[str]) -> list[str]:
+    """
+        Fetch many press releases concurrently.
+    """
+    logger.info(f"Fetching many press releases: {urls}")
+
+    # Prepare tasks
+    tasks = []
+    for url in urls:
+        report_type, report_date, file_name, file_dir, meta_data = prepare_pr_info_for_fetch(url)
+        if report_type is not None:
+            tasks.append(crawler.crawl_and_save_markdown(url, 
+                                                        file_dir, 
+                                                        file_name_strategy = 'customized', 
+                                                        user_defined_file_name = file_name, 
+                                                        meta_data = meta_data))
+
+    # Fetch many press releases concurrently
+    if len(tasks) == 0:
+        logger.info(f"No press releases to fetch")
+    else:
+        await asyncio.gather(*tasks, return_exceptions=True)
+        logger.info(f"Fetched many press releases: {urls}")
+    
+
+def prepare_pr_info_for_fetch(url: str) -> dict:
+    '''
+        Prepare the press release information for fetching.
+    '''
+    file_dir = PR_FILES_FOLDER_PATH_STR
+
+    report_type = get_report_type(url)
+    report_date = get_report_date(url, report_type)
+
+    file_name = f"{PR_FILE_PREFIX}-{report_type}-{report_date}"
+
+    # Start with None data
+    pr_year = None
+    pr_month = None
+    pr_quarter = None
+
+    # Prepare meta data
+    if report_type == "monthly":
+        pr_year = int(report_date.split("_")[0])
+        pr_month = int(report_date.split("_")[1])
+    elif report_type == "quarterly":
+        pr_year = int(report_date.split("_")[0])
+        pr_quarter = int(report_date.split("_")[1].replace("q", ""))
+    elif report_type == "yearly":
+        pr_year = int(report_date)
+
+    meta_data = {
+        'url': url,
+        'report_name': file_name,
+        'report_type': report_type,
+        'year': pr_year,
+        'month': pr_month,
+        'quarter': pr_quarter
+    }
+
+    return report_type, report_date, file_name, file_dir, meta_data
+
+
+async def fetch_press_release(url: str) -> str:
 
     # :::::: Crawl and download MD  :::::: #
     
-    # logger.info("Running fetch_press_release")
+    logger.info("Running fetch_press_release")
 
-    # file_dir = 'storage/raw_files/pr_files/'
+    report_type, report_date, file_name, file_dir, meta_data = prepare_pr_info_for_fetch(url)
 
-    # report_type = get_report_type(url)
-    # report_date = get_report_date(url, report_type)
+    logger.info(f"Meta data of fetch press release: {meta_data}")
 
-    # file_name = f"{PR_FILE_PREFIX}-{report_type}-{report_date}"
-
-    # print(report_type, report_date)
-
-    # if report_type is not None:
-    #     # Crawl and save the markdown file
-    #     crawler.crawl_and_save_markdown(url, file_dir, file_name_strategy = 'customized', user_defined_file_name = file_name)
-
-
-    # :::::: Check the crawl one result  :::::: #
-
-    # result = asyncio.run(crawler.crawl_one(url))
-    # html = result['cleaned_html']
-
-    # soup = BeautifulSoup(html, "html.parser")
-
-    # # select the second section under main
-    # target = soup.select("main > section:nth-of-type(2) > div > div")
-    # print(target)
+    if report_type is not None:
+        # Crawl and save the markdown file
+        await crawler.crawl_and_save_markdown(url, 
+                                        file_dir, 
+                                        file_name_strategy = 'customized', 
+                                        user_defined_file_name = file_name, 
+                                        meta_data = meta_data)
 
 
 
     # :::::: Parse the press release :::::: #
 
 
-    file_dir = 'storage/raw_files/pr_files/'
+    # file_dir = 'storage/raw_files/pr_files/'
 
-    # file_name = 'tradeweb_reports-monthly-2025_08'
-    # file_name = 'tradeweb_reports-monthly-2023_05'
-    # file_name = 'tradeweb_reports-monthly-2019_02'
-    # file_name = 'tradeweb_reports-quarterly-2025_q1'
-    file_name = 'tradeweb_reports-yearly-2021'
+    # # file_name = 'tradeweb_reports-monthly-2025_08'
+    # # file_name = 'tradeweb_reports-monthly-2023_05'
+    # # file_name = 'tradeweb_reports-monthly-2019_02'
+    # # file_name = 'tradeweb_reports-quarterly-2025_q1'
+    # file_name = 'tradeweb_reports-yearly-2021'
 
-    file_path = f'{file_dir}{file_name}.md'
+    # file_path = f'{file_dir}{file_name}.md'
 
-    parse_pr_m(file_path)
+    # parse_pr_m(file_path)
 
 
 def try_rm_junk_part_for_pr(md_text: str) -> str:

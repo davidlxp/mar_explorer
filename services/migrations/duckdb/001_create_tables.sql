@@ -32,8 +32,8 @@ CREATE TABLE IF NOT EXISTS mar_trade_days_m (
 CREATE TABLE IF NOT EXISTS pr_index (
     id INTEGER PRIMARY KEY,
     url TEXT,
-    file_name TEXT,
-    file_type TEXT,
+    report_name TEXT,
+    report_type TEXT,
     year INTEGER,
     month INTEGER,
     quarter INTEGER,

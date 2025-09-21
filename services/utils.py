@@ -7,6 +7,8 @@ import tiktoken
 import logging
 import re
 from services.constants import *
+import json
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +66,18 @@ def read_file(file_path: str) -> str:
     with open(file_path, 'r') as f:
         return f.read()
     return text
+
+def save_meta_file(meta_data: dict, org_file_dir: str, org_file_name: str):
+    '''
+      Save the meta data to a file.
+      Args:
+        meta_data: The meta data to save
+        org_file_dir: The directory of the original file
+        org_file_name: The name of the original file
+    '''
+    os.makedirs(org_file_dir, exist_ok=True)
+    with open(f'{org_file_dir}/{org_file_name}-meta.json', 'w') as f:
+        json.dump(meta_data, f)
 
 def regularize_url(url: str) -> str:
     '''

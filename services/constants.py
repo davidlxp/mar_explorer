@@ -6,6 +6,9 @@
 # The folder path for the MAR files
 MAR_FILES_FOLDER_PATH_STR = "storage/snapshots/mar"
 
+# The folder path for the PR files
+PR_FILES_FOLDER_PATH_STR = "storage/raw_files/pr_files"
+
 # Supported MAR tabs to parse
 MAR_SHEETS_TO_FILE_MAPPINGS = {
     'ADV - M': 'mar_adv_m.parquet',

@@ -200,10 +200,11 @@ def download_file(url: str, dest_dir: str, file_name: str = None, chunk_size: in
 
     return file_path
 
-def crawl_and_save_markdown(url: str, 
+async def crawl_and_save_markdown(url: str, 
                             file_dir: str, 
                             file_name_strategy: str = 'url', 
-                            user_defined_file_name: str = None):
+                            user_defined_file_name: str = None,
+                            meta_data: dict = None):
     '''
         Crawl a single URL and save the markdown content to a file.
 
@@ -231,16 +232,35 @@ def crawl_and_save_markdown(url: str,
         raise ValueError(f"Invalid file_name_strategy: {file_name_strategy}")
 
     # Crawl the site 
-    result = asyncio.run(crawl_one(url))
+    result = await crawl_one(url)
     md_raw = result['raw_markdown']
 
     # Store file
     os.makedirs(file_dir, exist_ok=True)
 
     # Create the file path
-    file_path = f'{file_dir}{file_name}.md'
+    file_path = f'{file_dir}/{file_name}.md'
 
     utils.write_file(md_raw, file_path)
     logger.info(f"Saved markdown from {url} to {file_path}")
 
+    # Save the meta data
+    if meta_data is not None:
+        utils.save_meta_file(meta_data, file_dir, file_name)
+
     return file_path
+
+# async def crawl_many_and_save_markdown(urls: str, 
+#                                     file_dirs: str, 
+#                                     file_name_strategy: str = 'url', 
+#                                     user_defined_file_names: str = None,
+#                                     meta_datas: dict = None):
+
+#     tasks = []
+#     for u, f, n, m in zip(urls, file_dirs, user_defined_file_names, meta_datas):
+#         tasks.append(crawl_and_save_markdown(u, f, file_name_strategy, n, m))
+
+#     await asyncio.gather(*tasks, return_exceptions=True)
+
+#     # Nothing needs to be returned
+#     return None
