@@ -29,10 +29,10 @@ from services.vectorstores import pinecone_store
 if __name__ == "__main__":
 
     # # Create all tables when starting the app
-    db = get_database()
-    db._run_migrations()
+    # db = get_database()
+    # db._run_migrations()
 
-    # test_runs.test_run_mar_update()
+    test_runs.test_run_mar_update()
     # test_runs.test_run_print_all_tables()
     # test_runs.test_run_query1()
     # test_runs.test_run_query_pr_index()

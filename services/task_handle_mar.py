@@ -41,7 +41,12 @@ def handle_mar_update(file):
     for tab in mar_tabs:
         parse_mar_to_file(file, tab)
 
+    # Combine the latest MAR files
+    combine_latest_mar(file_type='monthly')
+
+    # Update the database with the latest combined MAR files
     update_db_with_latest_mar()
+
     return True
 
 def parse_mar_to_file(file, sheet_name):
