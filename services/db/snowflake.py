@@ -39,10 +39,6 @@ class SnowflakeDB(Database):
         '''
         # First ensure database and schema exist
         cur = self.conn.cursor()
-        cur.execute("CREATE DATABASE IF NOT EXISTS mar_explorer")
-        cur.execute("USE DATABASE mar_explorer")
-        cur.execute("CREATE SCHEMA IF NOT EXISTS main")
-        cur.execute("USE SCHEMA main")
 
         migrations = sorted(Path(MIGRATIONS_DIR).glob("*.sql"))
         for sql_file in migrations:
