@@ -49,14 +49,14 @@ def test_run_ALL():
 
 def test_run_mar_update():
     logger.info("Running test_run_query1")
-    the_file = "storage/raw_files/mar_files/tw-historical-adv-and-day-count-through-august-2025.xlsx"
+    the_file = "storage/raw_files/mar_files/tradeweb-mar-2025_08.xlsx"
     task_mar.handle_mar_update(the_file)
 
 def test_run_query1():
     logger.info("Running test_run_query1")
     test_query2 = """
         SELECT count(*)
-        FROM mar_adv_m 
+        FROM mar_combined_m
     """
     df = db.fetchdf(test_query2)
     print(df)
@@ -100,8 +100,7 @@ def test_run_fetch_many_press_releases():
     logger.info("Running test_run_fetch_many_press_releases")
     asyncio.run(task_pr.fetch_many_press_releases(PR_AND_NOISE_URLs))
 
-
-def test_run_ingest_pr_md_file():
+def test_run_ingest_one_pr_md_file():
 
     logger.info("Running test_run_parse_pr_m")
 
@@ -114,24 +113,6 @@ def test_run_ingest_pr_md_file():
     file_path = f'{PR_FILES_FOLDER_PATH_STR}/{file_name}.md'
 
     asyncio.run(task_pr.ingest_pr_md_file(file_path))
-
-def test_run_query_pr_index():
-    logger.info("Running test_run_query_pr_index")
-    test_query = """
-        SELECT *
-        FROM pr_index 
-    """
-    df = db.fetchdf(test_query)
-    print(df.iloc[0])
-
-def test_run_query_pr_index_count():
-    logger.info("Running test_run_query_pr_index")
-    test_query = """
-        SELECT COUNT(*)
-        FROM pr_index 
-    """
-    df = db.fetchdf(test_query)
-    print(df.iloc[0])
 
 def test_run_ingest_all_pr_md_in_storage():
     logger.info("Running test_run_ingest_all_pr_md_in_storage")

@@ -33,6 +33,50 @@ pd.set_option("display.max_columns", None) # show all columns
 pd.set_option("display.width", None)       # don't wrap to next line
 pd.set_option("display.max_colwidth", None) # show full column content
 
+def get_latest_mar_file():
+    """
+    Find the latest MAR file in the raw files folder.
+    The function looks for files starting with 'tradeweb-mar-' and ending with '.xlsx',
+    then finds the one with the latest date in its name (format: YYYY_MM).
+    
+    Returns:
+        str: Path to the latest MAR file
+    """
+    # Get the directory path from constants
+    mar_dir = MAR_RAW_FILES_FOLDER_PATH_STR
+    
+    # List all files in the directory that match the pattern
+    mar_files = []
+    for file in os.listdir(mar_dir):
+        if file.startswith('tradeweb-mar-') and file.endswith('.xlsx'):
+
+            # Extract the date part (YYYY_MM) from the filename
+            date_str = file.replace('tradeweb-mar-', '').replace('.xlsx', '')
+
+            # Convert to datetime for comparison
+            try:
+                date = datetime.strptime(date_str, '%Y_%m')
+                mar_files.append((date, os.path.join(mar_dir, file)))
+
+            except ValueError:
+                # Skip files that don't match the expected date format
+                continue
+    
+    if not mar_files:
+        raise FileNotFoundError(f"No MAR files found in {mar_dir}")
+    
+    # Sort by date and get the latest file
+    latest_file = max(mar_files, key=lambda x: x[0])[1]
+    return latest_file
+
+def update_mar_with_latest_file():
+    '''
+        Module updates the MAR with the latest file in storage
+        For storage location, see MAR_RAW_FILES_FOLDER_PATH_STR in constants.py
+    '''
+    latest_file_path = get_latest_mar_file()
+    handle_mar_update(latest_file_path)
+
 def handle_mar_update(file):
     '''
         Module handles the mar upload process.

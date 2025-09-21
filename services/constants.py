@@ -13,6 +13,9 @@ EMBED_PROVIDER = "openai"
 # The folder path for the MAR files
 MAR_FILES_FOLDER_PATH_STR = "storage/snapshots/mar"
 
+# The folder path for the MAR raw files
+MAR_RAW_FILES_FOLDER_PATH_STR = "storage/raw_files/mar_files"
+
 # The folder path for the PR files
 PR_FILES_FOLDER_PATH_STR = "storage/raw_files/pr_files"
 
