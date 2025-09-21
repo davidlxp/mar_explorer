@@ -10,7 +10,7 @@ import duckdb
 from pathlib import Path
 from services.db import get_database
 import logging
-from services.schemas import *
+from services.schemas import MAR_VOLUME_SCHEMA, MAR_TRADE_DAYS_SCHEMA, MAR_COMBINED_SCHEMA, MAR_FILE_NAMES_FOR_DB
 from services.utils import enforce_schema
 from services.constants import *
 
@@ -71,10 +71,10 @@ def parse_mar_to_file(file, sheet_name):
     # Define the value column name
     if sheet_name in ['ADV - M', 'Volume - M']:
         value_col_name = 'volume'
-        schema = MAR_VOLUME_M_SCHEMA
+        schema = MAR_VOLUME_SCHEMA
     elif sheet_name in ['Trade Days - M']:
         value_col_name = 'trade_days'
-        schema = MAR_TRADE_DAYS_M_SCHEMA
+        schema = MAR_TRADE_DAYS_SCHEMA
 
     # :::::: Data Cleaning :::::: #
 
@@ -202,7 +202,7 @@ def combine_latest_mar(file_type='monthly'):
         df_combined = df_combined.drop(columns=[col for col in columns_to_drop if col in df_combined.columns])
 
         # Enforce the schema
-        df_combined = enforce_schema(df_combined, MAR_COMBINED_M_SCHEMA)
+        df_combined = enforce_schema(df_combined, MAR_COMBINED_SCHEMA)
         
         # Save the combined file
         combined_file = f'{latest_files_path}/mar_combined{suffix}.parquet'
@@ -210,13 +210,15 @@ def combine_latest_mar(file_type='monthly'):
         logger.info(f'Saved combined file to {combined_file}')
 
         return True
-    
-    logger.info(f'Either ADV or Volume file ({file_type}) is missing. No combination needed.')
-    return True
+    else:
+        raise FileNotFoundError(f'Either ADV or Volume file ({file_type}) is missing. No combination can be done.')
+
 
 def update_db_with_latest_mar():
     '''
-        Module ingests all parsed MAR files into the database.
+    Module ingests the combined MAR files into the database.
+    Uses MAR_FILE_NAMES_FOR_DB to determine which files to ingest
+    and MAR_COMBINED_SCHEMA for schema validation.
     '''
     # Get the folder with the latest data (folder name is the YYYY-MM)
     folder_path = Path(MAR_FILES_FOLDER_PATH_STR)
@@ -226,19 +228,27 @@ def update_db_with_latest_mar():
     # The files' path
     latest_files_path = f'{MAR_FILES_FOLDER_PATH_STR}/{latest_year_month}'
 
-    # Load files to tables according to the mappings
-    for file_name, table_name in MAR_FILE_TO_TABLE_MAPPINGS.items():
+    # Find all files to be ingested
+    files_to_ingest = []
+    for file_name in MAR_FILE_NAMES_FOR_DB:
         file_path = f'{latest_files_path}/{file_name}'
+        if os.path.exists(file_path):
+            # Get table name by removing file extension
+            table_name = os.path.splitext(file_name)[0]  # This will remove any extension (.parquet, .csv, etc.)
+            files_to_ingest.append((file_path, table_name))
+            logger.info(f'Found file to ingest: {file_path}')
 
-        # Get the appropriate schema based on the table name
-        schema = MAR_VOLUME_M_SCHEMA if table_name in ('mar_adv_m', 'mar_volume_m') else MAR_TRADE_DAYS_M_SCHEMA
-        
-        db.replace_data_in_table(file_path, table_name, schema=schema)
-        logger.info(f'Loaded {file_name} to {table_name}')
+    # Load files to tables
+    for file_path, table_name in files_to_ingest:
+        try:
+            db.replace_data_in_table(file_path, table_name, schema=MAR_COMBINED_SCHEMA)
+            logger.info(f'Loaded {file_path} to {table_name}')
+        except Exception as e:
+            logger.error(f'Failed to load {file_path} to {table_name}: {str(e)}')
 
-    logger.info(f'Loaded the latest MAR files to tables. The latest year and month is {latest_year_month}')
-    
-    # Try to combine ADV and Volume files if they both exist
-    combine_latest_mar('monthly')  # For now, we only have monthly data
+    if files_to_ingest:
+        logger.info(f'Loaded the latest MAR files to tables. The latest year and month is {latest_year_month}')
+    else:
+        logger.info(f'No MAR files found to ingest in {latest_year_month}')
     
     return True

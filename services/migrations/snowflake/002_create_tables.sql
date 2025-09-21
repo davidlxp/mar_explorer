@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS logs (
 );
 
 -- MAR Volume (monthly)
-CREATE TABLE IF NOT EXISTS mar_volume_m (
+CREATE TABLE IF NOT EXISTS mar_combined_m (
     asset_class VARCHAR,
     product VARCHAR,
     product_type VARCHAR,

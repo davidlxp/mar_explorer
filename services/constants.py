@@ -8,13 +8,15 @@
 DB_PROVIDER = "snowflake"
 EMBED_PROVIDER = "openai"
 
-# :::::: EMBED Related :::::: #
+# :::::: FILE PATHS Related :::::: #
 
 # The folder path for the MAR files
 MAR_FILES_FOLDER_PATH_STR = "storage/snapshots/mar"
 
 # The folder path for the PR files
 PR_FILES_FOLDER_PATH_STR = "storage/raw_files/pr_files"
+
+# :::::: MAR Parsing Related :::::: #
 
 # Supported MAR tabs to parse
 MAR_SHEETS_TO_FILE_MAPPINGS = {
@@ -28,13 +30,12 @@ MAR_FILE_TO_TABLE_MAPPINGS = {
     'mar_volume_m.parquet': 'mar_volume_m',
 }
 
-PR_URL_DOMAIN = "https://www.tradeweb.com/"
+# The file names for the MAR files to be ingested into the database
+MAR_FILE_NAMES_FOR_DB = ['mar_combined_m.parquet']
 
-EXCLUDE_HEADERS = [
-    "Media Contacts",
-    "Market and Industry Data",
-    "Forward-Looking Statements",
-]
+# :::::: PR Parsing Related :::::: #
+
+PR_URL_DOMAIN = "https://www.tradeweb.com/"
 
 # Quarter mapping
 PR_QUARTER_MAPPING = {
@@ -54,8 +55,6 @@ YEARLY_PR_PATTERN = r"tradeweb-reports-(first|second|third|fourth)-quarter-and-f
 
 # The prefix for the press release md file naming
 PR_FILE_PREFIX = "tradeweb_reports"
-
-# :::::: Related to Monthly Press Release Parsing :::::: #
 
 # Used for broad matching lines, remove all the sections include and above these lines 
 PR_M_MD_HEAD_RM_PATTERNS = [
