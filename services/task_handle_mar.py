@@ -13,6 +13,9 @@ import logging
 from services.schemas import MAR_VOLUME_SCHEMA, MAR_TRADE_DAYS_SCHEMA, MAR_COMBINED_SCHEMA
 from services.utils import enforce_schema
 from services.constants import *
+import services.crawler as crawler
+import asyncio
+import services.utils as utils
 
 # Configure logging
 logging.basicConfig(
@@ -33,11 +36,57 @@ pd.set_option("display.max_columns", None) # show all columns
 pd.set_option("display.width", None)       # don't wrap to next line
 pd.set_option("display.max_colwidth", None) # show full column content
 
-def get_latest_mar_file():
+def crawl_latest_mar_file():
+    '''
+        Module crawls the latest MAR file from the website
+        For website location, see MAR_FIND_URL in constants.py
+    '''
+    # :::::: Crawl to find the MAR file :::::: #
+
+    # Crawl the website
+    result = asyncio.run(crawler.crawl_one(MAR_FIND_URL))
+    internal_links = result['internal_links']
+
+    # Get the hrefs
+    hrefs = [link['href'] for link in internal_links if 
+            link['href'] is not None and link['href'].startswith(MAR_URL_DOMAIN)]
+
+    # Regularize the hrefs
+    hrefs = [utils.regularize_url(href) for href in hrefs]
+
+    # Find only the ones that end with .xlsx
+    xlsx_hrefs = [href for href in hrefs if href.endswith('.xlsx')]
+
+    # Find the one for MAR file
+    mar_href = [href for href in xlsx_hrefs if MAR_URL_LAST_PART_NAME_PATTERN in href.split('/')[-1]][0]
+
+    # :::::: Prepare to Download :::::: #
+
+    # Get the last part from the href without the suffix
+    # It looks like https://www.tradeweb.com/4a51d0/globalassets/newsroom/09.05.25-august-mar/tw-historical-adv-and-day-count-through-august-2025.xlsx
+    last_part = mar_href.split('/')[-1]
+    last_part = Path(last_part).stem
+    
+    # Extract the YYYY_MM from the last part
+    year = last_part.split('-')[-1]
+    month_str = last_part.split('-')[-2]
+
+    # Convert the month to the format MM
+    month = datetime.strptime(month_str, "%B").strftime("%m")
+
+    # Name the file
+    mar_file_name = f"{MAR_FILE_NAME_PATTERN}-{year}_{month}.xlsx"
+
+    # :::::: Download the File :::::: #
+
+    # Download the file
+    crawler.download_file(mar_href, MAR_RAW_FILES_FOLDER_PATH_STR, mar_file_name)
+
+def get_latest_mar_file_from_storage():
     """
     Find the latest MAR file in the raw files folder.
-    The function looks for files starting with 'tradeweb-mar-' and ending with '.xlsx',
-    then finds the one with the latest date in its name (format: YYYY_MM).
+    The function looks for files starting with variable MAR_FILE_NAME_PATTERN in constants.py 
+    and ending with '.xlsx', then finds the one with the latest date in its name (format: YYYY_MM).
     
     Returns:
         str: Path to the latest MAR file
@@ -48,10 +97,10 @@ def get_latest_mar_file():
     # List all files in the directory that match the pattern
     mar_files = []
     for file in os.listdir(mar_dir):
-        if file.startswith('tradeweb-mar-') and file.endswith('.xlsx'):
+        if file.startswith(MAR_FILE_NAME_PATTERN) and file.endswith('.xlsx'):
 
             # Extract the date part (YYYY_MM) from the filename
-            date_str = file.replace('tradeweb-mar-', '').replace('.xlsx', '')
+            date_str = file.replace(MAR_FILE_NAME_PATTERN + "-", '').replace('.xlsx', '')
 
             # Convert to datetime for comparison
             try:
@@ -74,7 +123,13 @@ def update_mar_with_latest_file():
         Module updates the MAR with the latest file in storage
         For storage location, see MAR_RAW_FILES_FOLDER_PATH_STR in constants.py
     '''
-    latest_file_path = get_latest_mar_file()
+    # :::::: Crawl to find the latest MAR file and download it :::::: #
+    crawl_latest_mar_file()
+
+    # :::::: Get the latest MAR file :::::: #
+    latest_file_path = get_latest_mar_file_from_storage()
+
+    # :::::: Handle the MAR update :::::: #
     handle_mar_update(latest_file_path)
 
 def handle_mar_update(file):
@@ -267,7 +322,6 @@ def combine_latest_mar(file_type='monthly'):
         return True
     else:
         raise FileNotFoundError(f'Either ADV or Volume file ({file_type}) is missing. No combination can be done.')
-
 
 def update_db_with_latest_mar():
     '''

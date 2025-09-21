@@ -4,7 +4,7 @@
 # Note: Please run the Streamlit app using: streamlit run app/app.py
 # ------------------------------------------------------------------
 
-# from services import task_handle_mar
+from services import task_handle_mar
 from services.db import get_database
 # from services import task_handle_pr
 import asyncio
@@ -23,7 +23,7 @@ if __name__ == "__main__":
 
     # test_runs.test_run_mar_update()
     # test_runs.test_run_print_all_tables()
-    test_runs.test_run_query1()
+    # test_runs.test_run_query1()
     # test_runs.test_run_ALL()
     # test_runs.test_run_crawler_one()
     # test_runs.test_run_fetch_press_release()
@@ -41,6 +41,11 @@ if __name__ == "__main__":
     # print(matches)
 
     # pinecone_store.confirm_and_delete_all_records()
+
+    task_handle_mar.crawl_latest_mar_file()
+
+
+
     pass
 
 

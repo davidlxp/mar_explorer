@@ -19,6 +19,11 @@ MAR_RAW_FILES_FOLDER_PATH_STR = "storage/raw_files/mar_files"
 # The folder path for the PR files
 PR_FILES_FOLDER_PATH_STR = "storage/raw_files/pr_files"
 
+# :::::: Website Related :::::: #
+
+# The URL for finding the latest MAR file
+MAR_FIND_URL = "https://www.tradeweb.com/newsroom/monthly-activity-reports"
+
 # :::::: MAR Parsing Related :::::: #
 
 # Supported MAR tabs to parse
@@ -35,6 +40,14 @@ MAR_FILE_TO_TABLE_MAPPINGS = {
 
 # The file names for the MAR files to be ingested into the database
 MAR_FILE_NAMES_FOR_DB = ['mar_combined_m.parquet']
+
+# :::::: MAR Parsing Related :::::: #
+
+MAR_URL_DOMAIN = "https://www.tradeweb.com/"
+
+MAR_URL_LAST_PART_NAME_PATTERN = "tw-historical-adv-and-day-count"
+
+MAR_FILE_NAME_PATTERN = "tradeweb-mar"
 
 # :::::: PR Parsing Related :::::: #
 
