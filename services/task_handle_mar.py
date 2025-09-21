@@ -343,7 +343,7 @@ def update_db_with_latest_mar():
         file_path = f'{latest_files_path}/{file_name}'
         if os.path.exists(file_path):
             # Get table name by removing file extension
-            table_name = os.path.splitext(file_name)[0]  # This will remove any extension (.parquet, .csv, etc.)
+            table_name = MAR_FILE_TO_TABLE_MAPPINGS[file_name]
             files_to_ingest.append((file_path, table_name))
             logger.info(f'Found file to ingest: {file_path}')
 

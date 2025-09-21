@@ -34,8 +34,7 @@ MAR_SHEETS_TO_FILE_MAPPINGS = {
 
 # MAR file to table mappings
 MAR_FILE_TO_TABLE_MAPPINGS = {
-    'mar_adv_m.parquet': 'mar_adv_m',
-    'mar_volume_m.parquet': 'mar_volume_m',
+    'mar_combined_m.parquet': 'mar_combined_m',
 }
 
 # The file names for the MAR files to be ingested into the database
