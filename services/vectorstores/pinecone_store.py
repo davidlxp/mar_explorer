@@ -1,7 +1,15 @@
 import os
 from typing import List, Dict, Any, Optional
-
+import logging
 from pinecone import Pinecone, exceptions
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 
 # :::::: Configuration :::::: #
 
@@ -32,25 +40,31 @@ def upsert_records(
     If USE_EXTERNAL_EMBEDDING is True, it will encode chunk_text externally and send vector + metadata.
     If False, uses integrated embedding (Pinecone embeds chunk_text automatically).
     """
-    # Integrated embedding: upsert_records
-    # Flatten metadata into main record
-    flattened_records = []
-    for record in records:
-        flattened_record = {
-            "id": record["id"],
-            "text": record["text"]
-        }
-        # Add metadata fields directly to record
-        if "metadata" in record:
-            flattened_record.update(record["metadata"])
-        flattened_records.append(flattened_record)
+    try:
+      
+      # Integrated embedding: upsert_records
+      # Flatten metadata into main record
+      flattened_records = []
+      for record in records:
+          flattened_record = {
+              "id": record["id"],
+              "text": record["text"]
+          }
+          # Add metadata fields directly to record
+          if "metadata" in record:
+              flattened_record.update(record["metadata"])
+          flattened_records.append(flattened_record)
 
-    index.upsert_records(
-        namespace=PINECONE_NAMESPACE,
-        records=flattened_records
-    )
+      index.upsert_records(
+          namespace=PINECONE_NAMESPACE,
+          records=flattened_records
+      )
 
-    print(f"Auto-embedded & upserted {len(records)} chunks into '{INDEX_NAME}' in namespace '{PINECONE_NAMESPACE}'")
+      print(f"Auto-embedded & upserted {len(records)} chunks into '{INDEX_NAME}' in namespace '{PINECONE_NAMESPACE}'")
+   
+    except Exception as e:
+      logger.exception(f"[upsert_records] Failed to upsert records: {records}")
+      raise e
 
 
 def search_content(
@@ -88,21 +102,34 @@ def search_content(
     Returns:
         List of matches with id, score, text and metadata
     """
-    # Construct the search query
-    search_query = {
-        "inputs" : {"text": query},
-        "top_k" : top_k,
-        "filter" : metadata if metadata else {},
-        "fields" : fields if fields else []
-    }
+    try:
+        logger.info(f"Searching content with query: {query} and fields: {fields}")
 
-    # Execute search with integrated embedding
-    resp = index.search(
-        namespace=PINECONE_NAMESPACE,
-        query=search_query
-    )
-    
-    return resp
+        # Construct the search query
+        search_query = {
+            "inputs" : {"text": query},
+            "top_k" : top_k,
+            "filter" : metadata if metadata else {},
+        }
+
+        # Execute search with integrated embedding
+        if fields and len(fields) > 0:
+          resp = index.search(
+              namespace = PINECONE_NAMESPACE,
+              query = search_query,
+              fields = fields
+          )
+        else:
+          resp = index.search(
+              namespace = PINECONE_NAMESPACE,
+              query = search_query
+          )
+        
+        return resp
+
+    except Exception as e:
+      logger.exception(f"[search_content] Failed to search for query: {query} and fields: {fields}")
+      raise e
 
 
 def confirm_and_delete_all_records():

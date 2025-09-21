@@ -47,12 +47,12 @@ if __name__ == "__main__":
     # test_runs.test_run_ingest_pr_md_file()
     # test_runs.test_run_query_pr_index_count()
 
-    # matches = pinecone_store.search_content(
-    #     query = "What is the total trading volume of Tradeweb in August 2025?",
-    #     fields = [])
-    # print(matches)
+    matches = pinecone_store.search_content(
+        query = "What is the total trading volume of Tradeweb in August 2025?",
+        fields = [])
+    print(matches)
 
-    pinecone_store.confirm_and_delete_all_records()
+    # pinecone_store.confirm_and_delete_all_records()
 
 
 
