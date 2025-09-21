@@ -1,25 +1,67 @@
+import os
+import sys
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Get the project root directory
+project_root = Path(__file__).parent.parent
+# Load environment variables from .env file in project root
+load_dotenv(project_root / '.env')
+
 import streamlit as st
 from services import task_handle_mar, task_handle_pr, nlq, logs
+
+# Verify Snowflake credentials are loaded
+required_env_vars = ['SNOWFLAKE_USER', 'SNOWFLAKE_PASSWORD', 'SNOWFLAKE_ACCOUNT', 'SNOWFLAKE_WAREHOUSE']
+missing_vars = [var for var in required_env_vars if var not in os.environ]
+
+if missing_vars:
+    st.error(f"❌ Missing required environment variables: {', '.join(missing_vars)}")
+    st.info("Please check your .env file and ensure all required variables are set.")
+    st.stop()
 
 st.set_page_config(layout="wide", page_title="Tradeweb MAR Explorer")
 st.title("📊 Tradeweb MAR Explorer")
 
-# :::::: Upload Excel :::::: #
-excel_file = st.sidebar.file_uploader("Upload MAR Excel", type=["xlsx"])
-if excel_file:
+# :::::: MAR Update Section :::::: #
+st.sidebar.markdown("### 📈 MAR Data")
+
+# Custom CSS for the button
+st.markdown("""
+    <style>
+    .stButton > button {
+        background-color: #4CAF50;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 4px;
+        border: none;
+    }
+    .stButton > button:hover {
+        background-color: #45a049;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Create a session state to track processing status
+if 'processing' not in st.session_state:
+    st.session_state.processing = False
+
+# Single button for MAR update
+if st.sidebar.button("🔄 Update Latest MAR", disabled=st.session_state.processing):
+    st.session_state.processing = True
+    status_container = st.sidebar.empty()
+    
     try:
-        month = task_handle_mar.handle_mar_update(excel_file)
-        st.sidebar.success(f"Excel ingested!")
+        status_container.info("⏳ Processing MAR update...")
+        task_handle_mar.handle_mar_update(None)  # Pass None since we're not using a file
+        status_container.success("✅ MAR update successful!")
     except Exception as e:
         import traceback
-        st.error(f"Error: {e}")
-        st.text(traceback.format_exc())
-
-# :::::: Upload Press Release :::::: #
-pr_file = st.sidebar.file_uploader("Upload Press Release", type=["txt"])
-if pr_file:
-    task_handle_pr.handle_pr_upload(pr_file)
-    st.sidebar.success("Press Release ingested!")
+        status_container.error("❌ Error during MAR update")
+        with st.sidebar.expander("See error details"):
+            st.code(traceback.format_exc())
+    finally:
+        st.session_state.processing = False
 
 # :::::: Chat box :::::: #
 st.markdown("---")
@@ -32,5 +74,5 @@ if question:
         st.write(answer)
         st.caption(f"Citations: {citations}")
     else:
-        st.warning("I couldn’t find this in the MAR or Press Release.")
+        st.warning("I couldn't find this in the MAR or Press Release.")
     logs.log_question(question, confidence, citations)
