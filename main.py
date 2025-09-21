@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
     # pinecone_store.confirm_and_delete_all_records()
 
-    task_handle_mar.crawl_latest_mar_file()
+    # task_handle_mar.crawl_latest_mar_file()
 
 
 

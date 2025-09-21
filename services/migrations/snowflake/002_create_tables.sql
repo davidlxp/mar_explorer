@@ -2,6 +2,7 @@
 CREATE TABLE IF NOT EXISTS logs (
     ts TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
     question VARCHAR,
+    response VARCHAR,
     confidence FLOAT,
     citations VARCHAR
 );
