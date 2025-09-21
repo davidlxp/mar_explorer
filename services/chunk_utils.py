@@ -4,6 +4,7 @@ import re
 import logging
 import spacy
 import copy
+from services.constants import DEFAULT_SENTENCES_REGROUP_RATIO
 
 # Configure logging
 logging.basicConfig(
@@ -30,7 +31,8 @@ def split_into_chunks(lines: list[str],
                       model_name: str,
                       tag_content: str = None,
                       tag_content_allowed_token: int = 30,
-                      chunk_overlap_lines: int = 0) -> list[str]:
+                      chunk_overlap_lines: int = 0,
+                      chunking_strategy: str = "aggregate_lines") -> list[str]:
     '''
         Split the lines into chunks.
         Args:
@@ -40,12 +42,18 @@ def split_into_chunks(lines: list[str],
             tag_content: The tag that will be added to each chunk. Usually it stands for the topic/category of this lines of content.
             tag_content_allowed_token: The max token count allowed for the tag_content.
             chunk_overlap_lines: How many lines from previous chunk is allowed to overlap into the next chunk. For better context preservation.
+            chunking_strategy: The strategy to use for chunking (Options: "aggregate_lines", "one_line_per_chunk")
         Returns:
             A list of text, and each stands for a chunk
 
         Limitation:
             Currently, it can't handle if a tag_content itself exceeds the max_token_count. But in most case, we shouldn't have this problem.
     '''
+    # Check if the chunking strategy is valid
+    if chunking_strategy not in ["aggregate_lines", "one_line_per_chunk"]:
+        raise ValueError(f"Invalid chunking strategy: {chunking_strategy}")
+
+    # Deep copy the lines to avoid modifying the original list
     lines = copy.deepcopy(lines)
 
     # Regularize the tag_content
@@ -65,7 +73,7 @@ def split_into_chunks(lines: list[str],
         lines.insert(0, tag_content)
         tag_content = ""
 
-    # In case any "tag_content + line" is too long, try to split the line into multiple lines
+    # In case any "tag_content + line" is too long, try to split the line into multiple sentences.
     # This section of code carries an assumption that the tag_content is usually not long. 
     lines_processed = []
     for line in lines:
@@ -76,71 +84,93 @@ def split_into_chunks(lines: list[str],
             '''           
 
             # Split the line into sentences and add them back.
+            # You might say splitting into sentences will break the context. But the chunk aggregation later shall group them back.
             sentences = split_text_into_sentences(line)
-            lines_processed.extend(sentences)
+
+            # Treat the sentences as lines to group them back but make sure less than 70% of "max_token_count"
+            # Try to maintain the context as much as possible.
+            grouped_sentences = _chunk_aggregate_lines(lines =sentences, 
+                                                    tag_content = tag_content, 
+                                                    chunk_overlap_lines = 0, 
+                                                    max_token_count = max_token_count * DEFAULT_SENTENCES_REGROUP_RATIO, 
+                                                    model_name = model_name)
+
+            lines_processed.extend(grouped_sentences)
         else:
             lines_processed.append(line)
 
     # :::::: Start Chunk Splitting :::::: #
 
-    # Recording the final output
-    chunks = []
+    if chunking_strategy == "one_line_per_chunk":
+        return _chunk_one_line_per_chunk(lines_processed, tag_content, chunk_overlap_lines)
+    elif chunking_strategy == "aggregate_lines":
+        return _chunk_aggregate_lines(lines_processed, tag_content, chunk_overlap_lines, max_token_count, model_name)
 
-    # Split the lines into different chunks with tag content
+
+def _chunk_one_line_per_chunk(lines_processed, tag_content, chunk_overlap_lines) -> list[str]:
+    '''
+        Please treat this as a internal helper function!
+
+        Split the lines into chunks, each line is a chunk.
+        Args:
+            lines_processed: The lines of conetent to be separated into chunks
+            tag_content: The tag that will be added to each chunk. Usually it stands for the topic/category of this lines of content.
+            chunk_overlap_lines: How many lines from previous chunk is allowed to overlap into the next chunk. For better context preservation.
+    '''
+    chunks = []
+    for i, line in enumerate(lines_processed):
+        # base chunk with tag + line
+        chunk_lines = [tag_content, line] if tag_content else [line]
+
+        # add overlap from previous lines (not including current line)
+        if chunk_overlap_lines > 0 and i > 0:
+            overlap_start = max(0, i - chunk_overlap_lines)
+            overlap = lines_processed[overlap_start:i]
+            chunk_lines = [tag_content] + overlap + [line] if tag_content else overlap + [line]
+
+        chunks.append("\n".join(chunk_lines))
+    return chunks
+
+
+def _chunk_aggregate_lines(lines, tag_content, chunk_overlap_lines, max_token_count, model_name) -> list[str]:
+    '''
+        Please treat this as a internal helper function!
+
+        Aggregate the lines into chunks.
+        Args:
+            lines_processed: The lines of conetent to be separated into chunks
+            tag_content: The tag that will be added to each chunk. Usually it stands for the topic/category of this lines of content.
+            chunk_overlap_lines: How many lines from previous chunk is allowed to overlap into the next chunk. For better context preservation.
+            max_token_count: The max token count for each chunk
+            model_name: The model name for the tokenizer
+    '''
+    chunks = []
     curr_chunk = [tag_content]
     i = 0
 
-    while i < len(lines_processed):
-        # Current line
-        curr_line = lines_processed[i]
-
-        # Try to create this chunk
+    while i < len(lines):
+        curr_line = lines[i]
         curr_chunk.append(curr_line)
         curr_chunk_str = "\n".join(curr_chunk)
 
-        # If the chunk is too large, remove the last line added, and commit the chunk
         if utils.get_token_count(curr_chunk_str, model_name) > max_token_count:
-            # remove the oversized line we just added
             curr_chunk.pop()
-
-            # commit only if there is content beyond the tag_content
             if len(curr_chunk) > 1:
                 chunks.append("\n".join(curr_chunk))
 
-            '''
-              NOTE: If len(curr_chunk) == 1, it means only tag_content is present. This case shouldn't occur because preprocessing 
-              ensures no single line exceeds max_token_count. So, we can safely proceed.
-            '''
-
-            # -------- prepare next chunk with safe overlap -------- #
-            
-            # overlap should come only from the content part (exclude tag_content)
-            content_start_idx = 1
-            content_part = curr_chunk[content_start_idx:]
-
-            # cap overlap to available lines
+            # prepare overlap
+            content_part = curr_chunk[1:]  # exclude tag
             eff_overlap = min(chunk_overlap_lines, len(content_part))
             overlap = content_part[-eff_overlap:] if eff_overlap > 0 else []
-
-            # shrink overlap until adding the current line will fit next time
-            base = [tag_content] + overlap
-            while overlap and utils.get_token_count("\n".join(base + [curr_line]), model_name) > max_token_count:
-                overlap.pop(0)                  # drop the earliest overlap line
-                base = [tag_content] + overlap  # reset the base
-
-            # reset current chunk to (tag + adjusted overlap); retry same line
-            curr_chunk = base
-            continue  # DO NOT advance i; we will re-add curr_line to the new curr_chunk
+            curr_chunk = [tag_content] + overlap
+            continue
         else:
-            # fits: advance to next line
             i += 1
 
-    # flush the tail if there is any content beyond the tag_content
     if len(curr_chunk) > 1:
         chunks.append("\n".join(curr_chunk))
 
     return chunks
-
 
 def split_text_by_token_limit_BRUTE(text: str, model_name: str, max_tokens: int, overlap: int = 0):
     """

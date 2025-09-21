@@ -44,8 +44,8 @@ if __name__ == "__main__":
 
     # task_handle_mar.crawl_latest_mar_file()
 
-    from services.nlq import run_cli
-    run_cli()
+    # from services.nlq import run_cli
+    # run_cli()
 
     pass
 

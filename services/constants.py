@@ -105,7 +105,7 @@ PR_M_MD_CONTENT_SEPARATE_PATTERN = [' highlights_**', ' highlights**', ' highlig
 PR_M_ASSET_CLASS = ['rates', 'credit', 'equities', 'money markets']
 
 
-# :::::: General Embedding Related :::::: #
+# :::::: General MD Embedding Related :::::: #
 
 CHUNK_TOKEN_MAX_FOR_EMBEDDING = 512             # Please making this no less than 200. To maintain the best context preservation, we avoid cut sentence. Usually, a sentence can't be 300 tokens longer.
 
@@ -113,14 +113,13 @@ DEFAULT_EMBEDDING_MODEL = 'text-embedding-3-large'
 
 DEFAULT_TAG_CONTENT_ALLOWED_TOKEN = 30
 
-DEFAULT_LINE_SPLIT_BY = 3
-
-DEFAULT_LINE_SPLIT_OVERLAP = 10                 # Num of tokens allowed to overlap between the splitted lines
-
 DEFAULT_CHUNK_OVERLAP_LINES = 1                 # Num of lines allowed to overlap between the chunks
 
+DEFAULT_CHUNKING_STRATEGY = "aggregate_lines"
 
-# :::::: PR Embedding Related :::::: #
+DEFAULT_SENTENCES_REGROUP_RATIO = 0.7          # The ratio of "max_token_count" to be used for regrouping the sentences into lines when the line is too long and we break it into sentences.
+
+# :::::: PR MD Embedding Related :::::: #
 
 PR_DEFAULT_TOKEN_MAX_FOR_EMBEDDING = 200         # Please making this no less than 200. To maintain the best context preservation, we avoid cut sentence. Usually, a sentence can't be 300 tokens longer.
 
@@ -128,8 +127,11 @@ PR_DEFAULT_EMBEDDING_MODEL = 'text-embedding-3-large'
 
 PR_DEFAULT_TAG_CONTENT_ALLOWED_TOKEN = 30
 
-PR_DEFAULT_LINE_SPLIT_BY = 3
-
-PR_DEFAULT_LINE_SPLIT_OVERLAP = 0               # Num of tokens allowed to overlap between the splitted lines
-
 PR_DEFAULT_CHUNK_OVERLAP_LINES = 1              # Num of lines allowed to overlap between the chunks
+
+
+# :::::: PR-M MD Embedding Related :::::: #
+
+PR_M_CHUNKING_STRATEGY = "one_line_per_chunk"           
+
+PR_M_CHUNK_OVERLAP_LINES = 0 

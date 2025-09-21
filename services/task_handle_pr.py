@@ -228,7 +228,7 @@ def turn_md_into_blocks_pr(md_text: str) -> tuple[list[str], list[list[str]]]:
     return (parents, children_groups)
 
 
-def split_md_to_chunks_pr(md_text: str) -> str:
+def split_md_to_chunks_pr(md_text: str, report_type: str) -> str:
     '''
         Try to separate the content into chunks, it's preparing for the content embedding process.
 
@@ -260,14 +260,14 @@ def split_md_to_chunks_pr(md_text: str) -> str:
     # :::::: Handle Head Section :::::: #
 
     if head_section is not None:
-
         # Split the head section into chunks
         head_chunks = chunk_utils.split_into_chunks(lines = head_section, 
                                                     max_token_count = PR_DEFAULT_TOKEN_MAX_FOR_EMBEDDING, 
                                                     model_name = PR_DEFAULT_EMBEDDING_MODEL, 
                                                     tag_content = '',
                                                     tag_content_allowed_token = PR_DEFAULT_TAG_CONTENT_ALLOWED_TOKEN,
-                                                    chunk_overlap_lines = PR_DEFAULT_CHUNK_OVERLAP_LINES)
+                                                    chunk_overlap_lines = PR_DEFAULT_CHUNK_OVERLAP_LINES,
+                                                    chunking_strategy = DEFAULT_CHUNKING_STRATEGY)
         
         chunks_out.extend(head_chunks)
 
@@ -278,6 +278,13 @@ def split_md_to_chunks_pr(md_text: str) -> str:
         # Turn the content section into blocks
         parents, children_groups = turn_md_into_blocks_pr('\n'.join(content_section))
         
+        if report_type == "monthly":
+            chunk_overlap_lines = PR_M_CHUNK_OVERLAP_LINES
+            chunking_strategy = PR_M_CHUNKING_STRATEGY
+        else:
+            chunk_overlap_lines = DEFAULT_CHUNK_OVERLAP_LINES
+            chunking_strategy = DEFAULT_CHUNKING_STRATEGY
+
         # Split the children into chunks
         for i, children in enumerate(children_groups):
             parent_tag = parents[i] + "\n"
@@ -286,8 +293,14 @@ def split_md_to_chunks_pr(md_text: str) -> str:
                                                         model_name = PR_DEFAULT_EMBEDDING_MODEL, 
                                                         tag_content = parent_tag,
                                                         tag_content_allowed_token = PR_DEFAULT_TAG_CONTENT_ALLOWED_TOKEN,
-                                                        chunk_overlap_lines = PR_DEFAULT_CHUNK_OVERLAP_LINES)
+                                                        chunk_overlap_lines = chunk_overlap_lines,
+                                                        chunking_strategy = chunking_strategy)
             chunks_out.extend(curr_chunks)
+
+    print("="*100)
+    for chunk in chunks_out:
+        print("="*100)
+        print(chunk)
         
     return chunks_out
 
@@ -297,7 +310,7 @@ def embed_and_upload_pr_chunks(chunks, url, report_name, report_type, year, mont
     records_to_upsert = []
     for i, chunk in enumerate(chunks):
         # deterministic ID as you had
-        id_str = f"{url}-{report_name}-{i}"
+        id_str = f"{url}-{report_name}-{chunk}"
         id_hash = hashlib.sha256(id_str.encode()).hexdigest()
 
         metadata = {
@@ -334,10 +347,6 @@ async def ingest_pr_md_file(file_path: str) -> bool:
     # Get the raw markdown and meta data
     md_raw = utils.read_file(file_path)
     meta_data = utils.get_meta_file(file_path)
-   
-    # Clean and chunk the markdown
-    md_cleaned = try_rm_junk_part_for_pr(md_raw)
-    md_chunks = split_md_to_chunks_pr(md_cleaned)
 
     # Get meta data details
     url = meta_data['url']
@@ -346,6 +355,10 @@ async def ingest_pr_md_file(file_path: str) -> bool:
     year = meta_data['year']
     month = meta_data['month']
     quarter = meta_data['quarter']
+
+    # Clean and chunk the markdown
+    md_cleaned = try_rm_junk_part_for_pr(md_raw)
+    md_chunks = split_md_to_chunks_pr(md_cleaned, report_type)
 
     # Embed and upload to DB
     embed_and_upload_pr_chunks(md_chunks, url, report_name, report_type, year, month, quarter)
