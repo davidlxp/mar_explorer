@@ -1,4 +1,4 @@
-from services.db import Database
+from services.db import get_database
 
 # def handle_question(q: str):
 #     con = get_con()
