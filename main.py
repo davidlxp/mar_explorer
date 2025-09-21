@@ -16,7 +16,7 @@
 
 
 # from services import task_handle_mar
-# from services.db import Database
+from services.db import get_database
 # from services import task_handle_pr
 import asyncio
 import services.crawler as crawler
@@ -29,8 +29,8 @@ from services.vectorstores import pinecone_store
 if __name__ == "__main__":
 
     # # Create all tables when starting the app
-    # db = Database()
-    # db._run_migrations()
+    db = get_database()
+    db._run_migrations()
 
     # test_runs.test_run_mar_update()
     # test_runs.test_run_print_all_tables()
