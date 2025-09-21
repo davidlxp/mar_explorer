@@ -58,3 +58,11 @@ class DuckDB(Database):
             DuckDB-specific: directly return a pandas DataFrame.
         '''
         return self.run_query(query, params).df()
+
+    def replace_data_in_table(self, file_path: str, table_name: str, schema: Optional[dict] = None) -> None:
+        """Replace table data with contents from a parquet file."""
+        self.run_query(f"""
+            CREATE OR REPLACE TABLE {table_name} AS
+            SELECT *
+            FROM read_parquet('{file_path}');
+        """)

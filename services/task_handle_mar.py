@@ -157,14 +157,13 @@ def update_db_with_latest_mar():
 
     # Load files to tables according to the mappings
     for file_name, table_name in MAR_FILE_TO_TABLE_MAPPINGS.items():
-        db.run_query(f"""
-            CREATE OR REPLACE TABLE {table_name} AS
-            SELECT *
-            FROM read_parquet('{latest_files_path}/{file_name}');
-        """)
+        file_path = f'{latest_files_path}/{file_name}'
 
+        # Get the appropriate schema based on the table name
+        schema = MAR_VOLUME_M_SCHEMA if table_name in ('mar_adv_m', 'mar_volume_m') else MAR_TRADE_DAYS_M_SCHEMA
+        
+        db.replace_data_in_table(file_path, table_name, schema=schema)
         logger.info(f'Loaded {file_name} to {table_name}')
 
     logger.info(f'Loaded the latest MAR files to tables. The latest year and month is {latest_year_month}')
-
     return True

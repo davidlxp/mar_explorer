@@ -25,3 +25,13 @@ class Database(ABC):
     def fetchdf(self, query: str, params: Optional[tuple] = None) -> pd.DataFrame:
         """Return query results as a pandas DataFrame."""
         pass
+
+    @abstractmethod
+    def replace_data_in_table(self, file_path: str, table_name: str) -> None:
+        """Replace all data in a table with data from a parquet file.
+        
+        Args:
+            file_path: Path to the parquet file
+            table_name: Name of the table to replace data in
+        """
+        pass
