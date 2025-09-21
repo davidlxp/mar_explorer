@@ -1,29 +1,29 @@
 -- Create logs table
 CREATE TABLE IF NOT EXISTS logs (
-    ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    question TEXT,
+    ts TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
+    question VARCHAR,
     confidence FLOAT,
-    citations TEXT
+    citations VARCHAR
 );
 
 -- MAR Volume (monthly)
 CREATE TABLE IF NOT EXISTS mar_volume_m (
-    asset_class TEXT,
-    product TEXT,
-    product_type TEXT,
-    year_month TEXT,
-    year INTEGER,
-    month INTEGER,
-    volume DOUBLE
+    asset_class VARCHAR,
+    product VARCHAR,
+    product_type VARCHAR,
+    year_month VARCHAR,
+    year NUMBER(4,0),
+    month NUMBER(2,0),
+    volume DOUBLE PRECISION
 );
 
 -- MAR Trade Days (monthly)
 CREATE TABLE IF NOT EXISTS mar_trade_days_m (
-    asset_class TEXT,
-    product TEXT,
-    product_type TEXT,
-    year_month TEXT,
-    year INTEGER,
-    month INTEGER,
-    trade_days DOUBLE
+    asset_class VARCHAR,
+    product VARCHAR,
+    product_type VARCHAR,
+    year_month VARCHAR,
+    year NUMBER(4,0),
+    month NUMBER(2,0),
+    trade_days DOUBLE PRECISION
 );

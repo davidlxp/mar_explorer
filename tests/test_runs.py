@@ -1,5 +1,5 @@
 from services import task_handle_mar
-from services.db import Database
+from services.db import get_database
 import services.crawler as crawler
 import services.task_handle_mar as task_mar
 import logging
@@ -15,7 +15,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-db = Database()
+db = get_database()
 
 PR_URLs = [
     "https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-august-2025-total-trading-volume-of--$54.1-trillion-and-average-daily-volume-of-$2.5-trillion",

@@ -1,4 +1,4 @@
-from services.db import Database
+from services.db import get_database
 import requests
 from bs4 import BeautifulSoup
 import services.crawler as crawler
@@ -26,7 +26,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Instantiate DB object
-db = Database()
+db = get_database()
 
 async def fetch_many_press_releases(urls: list[str]) -> list[str]:
     """

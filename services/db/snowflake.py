@@ -37,13 +37,48 @@ class SnowflakeDB(Database):
         '''
             Run all .sql migrations in order.
         '''
+        # First ensure database and schema exist
+        cur = self.conn.cursor()
+        cur.execute("CREATE DATABASE IF NOT EXISTS mar_explorer")
+        cur.execute("USE DATABASE mar_explorer")
+        cur.execute("CREATE SCHEMA IF NOT EXISTS main")
+        cur.execute("USE SCHEMA main")
+
         migrations = sorted(Path(MIGRATIONS_DIR).glob("*.sql"))
         for sql_file in migrations:
             logger.info(f"Running migration: {sql_file}")
             with open(sql_file, "r") as f:
+                # Read the entire SQL file
                 sql = f.read()
-                cur = self.conn.cursor()
-                cur.execute(sql)
+                logger.info(f"Raw SQL content: {repr(sql)}")  # Debug line to see exact content
+                
+                # More robust splitting that handles multiline statements
+                current_statement = []
+                statements = []
+                
+                for line in sql.splitlines():
+                    line = line.strip()
+                    if not line or line.startswith('--'):
+                        continue
+                        
+                    current_statement.append(line)
+                    if line.endswith(';'):
+                        full_stmt = ' '.join(current_statement)
+                        statements.append(full_stmt.rstrip(';').strip())
+                        current_statement = []
+                
+                # Handle last statement if it doesn't end with semicolon
+                if current_statement:
+                    full_stmt = ' '.join(current_statement)
+                    statements.append(full_stmt.strip())
+                
+                logger.info(f"Found {len(statements)} statements in {sql_file}")
+
+                # Execute each statement separately
+                for stmt in statements:
+                    if stmt:  # Skip empty statements
+                        logger.info(f"Executing statement: {stmt[:100]}...")
+                        cur.execute(stmt)
     
     def run_query(self, query: str, params: Optional[tuple] = None):
         cur = self.conn.cursor()
