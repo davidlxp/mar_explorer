@@ -32,7 +32,7 @@ if __name__ == "__main__":
     # db = get_database()
     # db._run_migrations()
 
-    test_runs.test_run_mar_update()
+    # test_runs.test_run_mar_update()
     # test_runs.test_run_print_all_tables()
     # test_runs.test_run_query1()
     # test_runs.test_run_query_pr_index()
@@ -42,9 +42,10 @@ if __name__ == "__main__":
     # test_runs.test_run_fetch_many_press_releases()
     # test_runs.test_run_parse_pr_m()
     # test_runs.test_run_query_pr_index()
-    # test_runs.test_run_ingest_all_pr_md_in_storage()
 
-    # test_runs.test_run_ingest_pr_md_file()
+    # test_runs.test_run_ingest_all_pr_md_in_storage()
+    # test_runs.test_run_ingest_one_pr_md_file()
+
     # test_runs.test_run_query_pr_index_count()
 
     # matches = pinecone_store.search_content(
@@ -53,6 +54,7 @@ if __name__ == "__main__":
     # print(matches)
 
     # pinecone_store.confirm_and_delete_all_records()
+    pass
 
 
 

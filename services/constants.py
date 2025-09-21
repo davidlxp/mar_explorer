@@ -107,7 +107,7 @@ DEFAULT_CHUNK_OVERLAP_LINES = 1                 # Num of lines allowed to overla
 
 # :::::: PR Embedding Related :::::: #
 
-PR_DEFAULT_TOKEN_MAX_FOR_EMBEDDING = 512         # Please making this no less than 200. To maintain the best context preservation, we avoid cut sentence. Usually, a sentence can't be 300 tokens longer.
+PR_DEFAULT_TOKEN_MAX_FOR_EMBEDDING = 200         # Please making this no less than 200. To maintain the best context preservation, we avoid cut sentence. Usually, a sentence can't be 300 tokens longer.
 
 PR_DEFAULT_EMBEDDING_MODEL = 'text-embedding-3-large'
 
