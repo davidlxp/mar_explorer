@@ -125,6 +125,9 @@ def parse_mar_to_file(file, sheet_name):
     # Fill the value column with 0 if it's NaN
     df[value_col_name] = df[value_col_name].fillna(0)
 
+    # Add updated_at timestamp as ISO format string
+    df['updated_at'] = pd.Timestamp.now().isoformat()
+
     # Enforce the schema
     df = enforce_schema(df, schema)
 
@@ -203,8 +206,11 @@ def combine_latest_mar(file_type='monthly'):
         )
         
         # Drop duplicate year and month columns from the right table
-        columns_to_drop = ['year_y', 'month_y']
+        columns_to_drop = ['year_y', 'month_y', 'updated_at_y']  # Also drop the duplicate updated_at
         df_combined = df_combined.drop(columns=[col for col in columns_to_drop if col in df_combined.columns])
+
+        # Update the timestamp for the combined file as ISO format string
+        df_combined['updated_at'] = pd.Timestamp.now().isoformat()
 
         # Enforce the schema
         df_combined = enforce_schema(df_combined, MAR_COMBINED_SCHEMA)

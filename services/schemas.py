@@ -10,6 +10,7 @@ MAR_VOLUME_SCHEMA = {
     "year": "int32",
     "month": "int32",
     "volume": "float64",
+    "updated_at": "string",  # Store as string in ISO format for better compatibility
 }
 
 MAR_TRADE_DAYS_SCHEMA = {
@@ -20,6 +21,7 @@ MAR_TRADE_DAYS_SCHEMA = {
     "year": "int32",
     "month": "int32",
     "trade_days": "float64",
+    "updated_at": "string",  # Store as string in ISO format for better compatibility
 }
 
 MAR_COMBINED_SCHEMA = {
@@ -31,4 +33,5 @@ MAR_COMBINED_SCHEMA = {
     "month": "int32",
     "volume": "float64",
     "avg_volume": "float64",
+    "updated_at": "string",  # Store as string in ISO format for better compatibility
 }
