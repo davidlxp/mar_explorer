@@ -3,7 +3,7 @@ from typing import Dict, List, Tuple, Optional
 import json
 import logging
 from pathlib import Path
-import openai
+from openai import OpenAI
 from services.db import get_database
 from services.vectorstores import pinecone_store
 import plotly.express as px
@@ -12,56 +12,167 @@ import pandas as pd
 # Configure logging
 logger = logging.getLogger(__name__)
 
+# Initialize OpenAI client
+client = OpenAI()
+
 # Initialize database connection
 db = get_database()
+
+# Configuration for supported data types
+SUPPORTED_DATA_TYPES = {
+    "monthly": True,    # Currently supported
+    "quarterly": False, # Not yet supported
+    "yearly": False     # Not yet supported
+}
+
+# System prompt for the AI
+SYSTEM_PROMPT = """You are TradeWeb's MAR Explorer, an AI assistant specifically designed to analyze and explain TradeWeb's Monthly Activity Report (MAR) data and financial press releases.
+
+Your primary capabilities:
+1. Query and analyze MAR data from our database, which contains:
+   - asset_class (e.g., Rates, Credit)
+   - product and product_type
+   - volume and avg_volume (ADV) metrics
+   - monthly data points with year and month information
+
+2. Search and explain TradeWeb's financial press releases for context and event analysis
+
+Data Analysis Guidelines:
+1. For ANY numerical questions (volumes, ADV, percentages):
+   - ALWAYS query the database
+   - REQUIRE specific time periods (month/year)
+   - If time period is missing, ask for clarification
+   - Example good query: "What was the Rates volume in August 2025?"
+   - Example vague query: "How is Credit volume doing?"
+
+2. For context or "why" questions:
+   - Use press release search for explanations
+   - Combine with data analysis when relevant
+   - Example: "Why did Mortgage ADV increase in August 2025?"
+
+Current Limitations:
+1. Only monthly data analysis is supported
+2. If users ask about quarterly or yearly data, inform them we currently only support monthly analysis
+3. Time periods must be specific (e.g., "August 2025", "Sep 2025")
+
+When to Ask for Clarification:
+1. Missing time period: "Could you specify which month and year you're interested in?"
+2. Vague asset class/product: "Which specific asset class or product would you like to analyze?"
+3. Unclear comparison period: "Would you like to compare with a specific previous period?"
+
+Remember: Always prioritize accuracy and clarity in financial data reporting."""
 
 # Function definitions for OpenAI
 FUNCTION_DEFINITIONS = [
     {
-        "name": "query_mar_data",
-        "description": "Query MAR (Monthly Activity Report) data from the database. Use this for numerical/statistical questions.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "metrics": {
-                    "type": "array",
-                    "description": "List of metrics to query (volume, avg_volume)",
-                    "items": {"type": "string"}
-                },
-                "filters": {
-                    "type": "object",
-                    "description": "Filter conditions (asset_class, product, product_type, year_month)",
-                    "properties": {
-                        "asset_class": {"type": "string"},
-                        "product": {"type": "string"},
-                        "product_type": {"type": "string"},
-                        "year_month": {"type": "string"},
-                        "year": {"type": "integer"},
-                        "month": {"type": "integer"}
+        "type": "function",
+        "function": {
+            "name": "query_mar_data",
+            "description": "Query MAR (Monthly Activity Report) data from the database. Use this for numerical/statistical questions.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "metrics": {
+                        "type": "array",
+                        "description": "List of metrics to query (volume, avg_volume)",
+                        "items": {"type": "string"}
+                    },
+                    "filters": {
+                        "type": "object",
+                        "description": "Filter conditions (asset_class, product, product_type, year_month)",
+                        "properties": {
+                            "asset_class": {"type": "string"},
+                            "product": {"type": "string"},
+                            "product_type": {"type": "string"},
+                            "year_month": {"type": "string"},
+                            "year": {"type": "integer"},
+                            "month": {"type": "integer"}
+                        }
+                    },
+                    "group_by": {
+                        "type": "array",
+                        "description": "Fields to group by",
+                        "items": {"type": "string"}
                     }
                 },
-                "group_by": {
-                    "type": "array",
-                    "description": "Fields to group by",
-                    "items": {"type": "string"}
-                }
-            },
-            "required": ["metrics"]
+                "required": ["metrics"]
+            }
         }
     },
     {
-        "name": "search_context",
-        "description": "Search press releases and documentation for contextual information. Use this for non-numerical questions.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string"},
-                "limit": {"type": "integer", "default": 3}
-            },
-            "required": ["query"]
+        "type": "function",
+        "function": {
+            "name": "search_context",
+            "description": "Search press releases and documentation for contextual information. Use this for non-numerical questions.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string"},
+                    "limit": {"type": "integer", "default": 3}
+                },
+                "required": ["query"]
+            }
         }
     }
 ]
+
+def analyze_question(question: str) -> Tuple[bool, str, float]:
+    """
+    Analyze if the question is relevant to MAR data or press releases.
+    Returns: (should_proceed, response_or_clarification, confidence)
+    """
+    try:
+        # First check if question is relevant and what type it is
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": """Analyze this question and respond with JSON:
+                {
+                    "is_relevant": true/false,
+                    "type": "data_query"/"context_query"/"clarification_needed",
+                    "needs_clarification": true/false,
+                    "clarification_reason": "time_period"/"asset_class"/"comparison_period"/null,
+                    "data_frequency": "monthly"/"quarterly"/"yearly"/null
+                }
+                
+                Question: """ + question}
+            ],
+            temperature=0,
+            max_tokens=150
+        )
+        
+        try:
+            analysis = json.loads(response.choices[0].message.content)
+        except json.JSONDecodeError:
+            logger.error("Failed to parse analysis JSON")
+            return True, "I'll help you analyze that.", 0.5
+
+        # If question is not relevant
+        if not analysis.get("is_relevant", False):
+            return False, "I'd be happy to help you with questions about TradeWeb's Monthly Activity Report (MAR) data or financial press releases. What would you like to know about those topics?", 1.0
+
+        # If question needs clarification
+        if analysis.get("needs_clarification", False):
+            reason = analysis.get("clarification_reason")
+            if reason == "time_period":
+                return False, "Could you specify which month and year you're interested in? For example, 'August 2025' or 'September 2025'.", 1.0
+            elif reason == "asset_class":
+                return False, "Which specific asset class or product would you like to analyze?", 1.0
+            elif reason == "comparison_period":
+                return False, "Would you like to compare with a specific previous period?", 1.0
+            
+        # Check if asking for unsupported data frequency
+        data_frequency = analysis.get("data_frequency")
+        if data_frequency in ["quarterly", "yearly"] and not SUPPORTED_DATA_TYPES.get(data_frequency, False):
+            return False, f"Currently, I can only analyze monthly data. {data_frequency.capitalize()} data analysis will be supported in the future.", 1.0
+
+        # Question is good to proceed
+        return True, "Proceeding with analysis", 0.95
+        
+    except Exception as e:
+        logger.error(f"Error analyzing question: {str(e)}")
+        return True, "I'll try to help you with that.", 0.5
 
 def build_sql_query(params: Dict) -> str:
     """Build SQL query from parameters"""
@@ -131,39 +242,56 @@ def generate_visualization(data: List[Dict], viz_type: str = "line") -> Optional
 def process_question(question: str) -> Tuple[str, Dict, float]:
     """Process a question and return answer, visualization data, and confidence"""
     try:
+        # First, analyze if question is relevant and needs clarification
+        should_proceed, message, confidence = analyze_question(question)
+        if not should_proceed:
+            return message, None, confidence
+            
+        # Initialize variables
+        results = []
+        viz_data = None
+        
         # Get function calls from OpenAI
-        messages = [{"role": "user", "content": question}]
-        response = openai.ChatCompletion.create(
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": question}
+        ]
+        
+        response = client.chat.completions.create(
             model="gpt-4",
             messages=messages,
-            functions=FUNCTION_DEFINITIONS,
-            function_call="auto"
+            tools=FUNCTION_DEFINITIONS,
+            tool_choice="auto"
         )
         
+        # For simple responses that don't need function calls
+        tool_calls = response.choices[0].message.tool_calls
+        if not tool_calls:
+            return response.choices[0].message.content, None, 1.0
+        
         # Execute functions and collect results
-        results = []
-        function_calls = response.choices[0].message.get("function_call")
-        if function_calls:
-            func_name = function_calls["name"]
-            func_args = json.loads(function_calls["arguments"])
+        for tool_call in tool_calls:
+            func_name = tool_call.function.name
+            func_args = json.loads(tool_call.function.arguments)
             result = execute_function(func_name, func_args)
             results.append(result)
             
             # Generate visualization if we have data
-            viz_data = None
             if result["type"] == "data":
                 viz_data = generate_visualization(result["content"])
         
         # Get final answer from OpenAI
-        final_response = openai.ChatCompletion.create(
+        final_response = client.chat.completions.create(
             model="gpt-4",
             messages=[
-                *messages,
+                {"role": "system", "content": SYSTEM_PROMPT},
+                *messages[1:],  # Skip the system message as we're adding it again
+                {"role": "assistant", "content": "Here are the results of my analysis:"},
                 {"role": "function", "name": "results", "content": json.dumps(results)}
             ]
         )
         
-        answer = final_response.choices[0].message["content"]
+        answer = final_response.choices[0].message.content
         confidence = 0.95 if not any(r.get("type") == "error" for r in results) else 0.5
         
         return answer, {"results": results, "visualization": viz_data}, confidence
