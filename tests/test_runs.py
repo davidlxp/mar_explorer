@@ -136,3 +136,4 @@ def test_run_query_pr_index_count():
 def test_run_ingest_all_pr_md_in_storage():
     logger.info("Running test_run_ingest_all_pr_md_in_storage")
     asyncio.run(task_pr.ingest_all_pr_md_in_storage())
+

@@ -16,6 +16,7 @@ from services.constants import *
 import services.chunk_utils as chunk_utils
 from services.embeddings import get_embedder
 import services.utils as utils
+import services.vectorstores.pinecone_store as pinecone_store
 
 # Configure logging
 logging.basicConfig(
@@ -293,46 +294,35 @@ def split_md_to_chunks_pr(md_text: str) -> str:
 
 def embed_and_upload_pr_chunks(chunks, url, report_name, report_type, year, month, quarter):
 
-    # :::::: 1. Compute embeddings :::::: #
-    embeddings = get_embedder()(chunks)
-
-    for i, (chunk, emb) in enumerate(zip(chunks, embeddings)):
-        print(chunk)
-        print(f"Embedding length: {len(emb)}")
-        print("="*100)
-
-    # :::::: 2. Insert into DB :::::: #
-
-    for i, (chunk, emb) in enumerate(zip(chunks, embeddings)):
-
-        # Create deterministic ID
+    records_to_upsert = []
+    for i, chunk in enumerate(chunks):
+        # deterministic ID as you had
         id_str = f"{url}-{report_name}-{i}"
         id_hash = hashlib.sha256(id_str.encode()).hexdigest()
 
-        # Insert into DB
-        # If the ID already exists, do nothing. Just skip it.
-        db.run_query(
-            """
-            INSERT INTO pr_index
-            (id, url, report_name, report_type, year, month, quarter, chunk_index, content, emb)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(id) DO NOTHING
-            """,
-            tuple([
-                id_hash,
-                url,
-                report_name,
-                report_type,
-                year,
-                month,
-                quarter,
-                i,
-                chunk,
-                np.array(emb).astype(np.float32).tobytes(),  # store as blob
-            ])
-        )
+        metadata = {
+            "url": str(url),
+            "report_name": str(report_name),
+            "report_type": str(report_type),
+            "year": int(year) if year is not None else -1,
+            "month": int(month) if month is not None else -1,
+            "quarter": int(quarter) if quarter is not None else -1,
+            "chunk_index": int(i)
+        }
 
-    logger.info(f"Handled {len(chunks)} embedded chunks insertion to DB. If ID already exists, it's skipped.")
+        # Each record includes “text” instead of “values” (vector) if using automated embedding
+        records_to_upsert.append({
+            "id": id_hash,
+            "text": chunk,
+            "metadata": metadata
+        })
+
+        # upsert_records is the operation which lets Pinecone embed automatically
+        # adjust batch size if needed
+        batch_size = 100
+        for j in range(0, len(records_to_upsert), batch_size):
+            batch = records_to_upsert[j : j + batch_size]
+            pinecone_store.upsert_records(records=batch)
 
 
 async def ingest_pr_md_file(file_path: str) -> bool:
