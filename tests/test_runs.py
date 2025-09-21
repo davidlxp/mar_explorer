@@ -107,7 +107,7 @@ def test_run_fetch_press_release():
     url = PR_URLs[0]
     
     logger.info("Running test_run_fetch_press_release")
-    task_pr.fetch_press_release(url)
+    asyncio.run(task_pr.fetch_press_release(url))
 
 def test_run_fetch_many_press_releases():
     logger.info("Running test_run_fetch_many_press_releases")
