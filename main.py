@@ -15,21 +15,22 @@
 
 
 
-from services import task_handle_mar
-from services.db import Database
-from services import task_handle_pr
+# from services import task_handle_mar
+# from services.db import Database
+# from services import task_handle_pr
 import asyncio
 import services.crawler as crawler
 import tests.test_runs as test_runs
 import services.utils as utils
 import os
 from services.constants import *
+from services.vectorstores import pinecone_store
 
 if __name__ == "__main__":
 
-    # Create all tables when starting the app
-    db = Database()
-    db._run_migrations()
+    # # Create all tables when starting the app
+    # db = Database()
+    # db._run_migrations()
 
     # test_runs.test_run_mar_update()
     # test_runs.test_run_print_all_tables()
@@ -41,10 +42,17 @@ if __name__ == "__main__":
     # test_runs.test_run_fetch_many_press_releases()
     # test_runs.test_run_parse_pr_m()
     # test_runs.test_run_query_pr_index()
-    test_runs.test_run_ingest_all_pr_md_in_storage()
+    # test_runs.test_run_ingest_all_pr_md_in_storage()
 
     # test_runs.test_run_ingest_pr_md_file()
     # test_runs.test_run_query_pr_index_count()
+
+    # matches = pinecone_store.search_content(
+    #     query = "What is the total trading volume of Tradeweb in August 2025?",
+    #     fields = [])
+    # print(matches)
+
+    pinecone_store.confirm_and_delete_all_records()
 
 
 

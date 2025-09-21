@@ -53,73 +53,70 @@ def upsert_records(
     print(f"Auto-embedded & upserted {len(records)} chunks into '{INDEX_NAME}' in namespace '{PINECONE_NAMESPACE}'")
 
 
-# def search_pr_vectors(
-#     query: str,
-#     top_k: int = 5,
-#     filter_metadata: Optional[Dict[str, Any]] = None
-# ) -> List[Dict[str, Any]]:
-#     """
-#     Perform a semantic search using vector similarity over all records.
+def search_content(
+    query: str,
+    top_k: int = 5,
+    metadata: Optional[Dict[str, Any]] = None,
+    fields: Optional[List[str]] = None
+) -> List[Dict[str, Any]]:
+    """
+    Search content using semantic similarity with optional metadata filtering.
+    
+    Args:
+        query: The search query text
+        top_k: Number of top results to return (default: 5)
+        metadata: Optional filter criteria with any of:
+                 - report_type: str (e.g., "annual", "quarterly")
+                 - year: int (e.g., 2023)
+                 - month: int (1-12)
+                 - quarter: int (1-4)
+                 - url: str
 
-#     If filtering is needed, use `search_pr_with_filter`.
-#     This returns vector-based search (no filter) OR with filtering if given.
-#     """
+    Examples:
+        # Simple search
+        results = search_content("financial performance 2023")
 
-#     if USE_EXTERNAL_EMBEDDING:
-#         # you need to encode externally
-#         from sentence_transformers import SentenceTransformer
-#         external_embedder = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-#         q_vec = external_embedder.encode([query])[0].tolist()
-#         # search by vector
-#         resp = index.query(
-#             vector=q_vec,
-#             top_k=top_k,
-#             include_metadata=True,
-#             filter=filter_metadata
-#         )
-#     else:
-#         # Integrated embedding: search by text
-#         # the search method likely expects a "search" or "query" call depending on SDK version
-#         resp = index.search(
-#             top_k=top_k,
-#             text=query,
-#             include_metadata=True,
-#             filter=filter_metadata
-#         )
+        # Search with metadata filter
+        results = search_content(
+            "revenue growth",
+            metadata={"year": {"$gte": 2023}, "report_type": "annual"}
+        )
 
-#     matches = []
-#     for m in resp["matches"]:
-#         # m.metadata contains your metadata + chunk_text
-#         res = {
-#             "id": m["id"],
-#             "score": m["score"],
-#             **m["metadata"]
-#         }
-#         matches.append(res)
+        Refer to documentation at:
+        https://docs.pinecone.io/guides/search/filter-by-metadata
+    
+    Returns:
+        List of matches with id, score, text and metadata
+    """
+    # Construct the search query
+    search_query = {
+        "inputs" : {"text": query},
+        "top_k" : top_k,
+        "filter" : metadata if metadata else {},
+        "fields" : fields if fields else []
+    }
 
-#     return matches
+    # Execute search with integrated embedding
+    resp = index.search(
+        namespace=PINECONE_NAMESPACE,
+        query=search_query
+    )
+    
+    return resp
 
 
-# def search_pr_with_filter(
-#     query: str,
-#     top_k: int = 5,
-#     year: Optional[int] = None,
-#     month: Optional[int] = None,
-#     quarter: Optional[int] = None,
-#     report_type: Optional[str] = None
-# ) -> List[Dict[str, Any]]:
-#     """
-#     Semantic search but only on items matching provided metadata filters.
-#     """
+def confirm_and_delete_all_records():
+    '''
+      Confirm and delete all records from the index
+    '''
 
-#     filt: Dict[str, Any] = {}
-#     if year is not None:
-#         filt["year"] = year
-#     if month is not None:
-#         filt["month"] = month
-#     if quarter is not None:
-#         filt["quarter"] = quarter
-#     if report_type is not None:
-#         filt["report_type"] = report_type
+    def delete_all_records():
+      index.delete(delete_all=True, namespace=PINECONE_NAMESPACE)
+      print(f"Deleted all records from '{INDEX_NAME}' in namespace '{PINECONE_NAMESPACE}'")
 
-#     return search_pr_vectors(query, top_k=top_k, filter_metadata=filt)
+    prompt = f"Are you sure you want to delete *all* records from index '{INDEX_NAME}' in namespace '{PINECONE_NAMESPACE}'? Type **Yes** to confirm: "
+    answer = input(prompt)
+    if answer == "Yes":
+        delete_all_records()
+    else:
+        print("Deletion cancelled.")
