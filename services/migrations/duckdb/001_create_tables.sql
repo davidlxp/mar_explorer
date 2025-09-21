@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS mar_trade_days_m (
 
 -- Create pr_index table
 CREATE TABLE IF NOT EXISTS pr_index (
-    id INTEGER PRIMARY KEY,
+    id VARCHAR PRIMARY KEY,
     url TEXT,
     report_name TEXT,
     report_type TEXT,

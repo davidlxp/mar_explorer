@@ -9,6 +9,7 @@ import re
 from services.constants import *
 import json
 import os
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +79,24 @@ def save_meta_file(meta_data: dict, org_file_dir: str, org_file_name: str):
     os.makedirs(org_file_dir, exist_ok=True)
     with open(f'{org_file_dir}/{org_file_name}-meta.json', 'w') as f:
         json.dump(meta_data, f)
+
+def get_meta_file(file_path: str) -> dict:
+    """
+    Get the metadata JSON corresponding to a file path.
+    Example: myfile.md -> myfile-meta.json
+    """
+    base = Path(file_path).with_suffix("")  # drop the extension
+    meta_file_path = f"{base}-meta.json"
+
+    try:
+        with open(meta_file_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        logger.warning(f"Meta file not found: {meta_file_path}")
+        return {}
+    except json.JSONDecodeError as e:
+        logger.error(f"Corrupt meta file {meta_file_path}: {e}")
+        return {}
 
 def regularize_url(url: str) -> str:
     '''

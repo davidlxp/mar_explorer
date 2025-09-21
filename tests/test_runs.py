@@ -52,15 +52,6 @@ def test_run_mar_update():
     the_file = "storage/raw_files/mar_files/tw-historical-adv-and-day-count-through-august-2025.xlsx"
     task_mar.handle_mar_update(the_file)
 
-def test_run_query_pr_index():
-    logger.info("Running test_run_query_pr_index")
-    test_query2 = """
-        SELECT *
-        FROM pr_index 
-    """
-    df = db.fetchdf(test_query2)
-    print(df)
-
 def test_run_query1():
     logger.info("Running test_run_query1")
     test_query2 = """
@@ -77,11 +68,6 @@ def test_run_print_all_tables():
     """
     df = db.fetchdf(test_query1)
     print(df)
-
-# def test_run_crawler_one():
-#   logger.info("Running test_run_crawler_one")
-#   result = asyncio.run(crawler.crawl_one(PR_URLs[0]))
-#   print(result)
 
 def test_run_crawler_one():
     logger.info("Running test_run_crawler_one")
@@ -115,21 +101,38 @@ def test_run_fetch_many_press_releases():
     asyncio.run(task_pr.fetch_many_press_releases(PR_AND_NOISE_URLs))
 
 
-def test_run_parse_pr_m():
+def test_run_ingest_pr_md_file():
+
     logger.info("Running test_run_parse_pr_m")
 
-    # file_name = 'tradeweb_reports-monthly-2025_08'
-    # file_name = 'tradeweb_reports-monthly-2023_05'
     # file_name = 'tradeweb_reports-monthly-2019_02'
-    file_name = 'tradeweb_reports-quarterly-2025_q2'
+    file_name = 'tradeweb_reports-monthly-2025_08'
+    # file_name = 'tradeweb_reports-monthly-2023_05'
+    # file_name = 'tradeweb_reports-quarterly-2025_q2'
     # file_name = 'tradeweb_reports-yearly-2021'
 
     file_path = f'{PR_FILES_FOLDER_PATH_STR}/{file_name}.md'
 
-    md_chunks = task_pr.parse_pr_m(file_path)
+    asyncio.run(task_pr.ingest_pr_md_file(file_path))
 
-    print("="*100)
-    for chunk in md_chunks:
-        print(chunk)
-        print("\n\n")
-        print("="*100)
+def test_run_query_pr_index():
+    logger.info("Running test_run_query_pr_index")
+    test_query = """
+        SELECT *
+        FROM pr_index 
+    """
+    df = db.fetchdf(test_query)
+    print(df.iloc[0])
+
+def test_run_query_pr_index_count():
+    logger.info("Running test_run_query_pr_index")
+    test_query = """
+        SELECT COUNT(*)
+        FROM pr_index 
+    """
+    df = db.fetchdf(test_query)
+    print(df.iloc[0])
+
+def test_run_ingest_all_pr_md_in_storage():
+    logger.info("Running test_run_ingest_all_pr_md_in_storage")
+    asyncio.run(task_pr.ingest_all_pr_md_in_storage())

@@ -1,4 +1,3 @@
-# from sentence_transformers import SentenceTransformer
 from services.db import Database
 import requests
 from bs4 import BeautifulSoup
@@ -11,12 +10,11 @@ import json
 import re
 from datetime import datetime
 import copy
+import numpy as np
 
 from services.constants import *
 import services.chunk_utils as chunk_utils
 from services.embeddings import get_embedder
-
-
 import services.utils as utils
 
 # Configure logging
@@ -26,38 +24,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
-def handle_pr_embed_and_upload(chunks, url, file_name, file_type, year, month, quarter):
-
-    # --- 2. Compute embeddings ---
-    embeddings = get_embedder()(chunks)
-
-    print(embeddings)
-
-    # # --- 3. Insert into DB ---
-    # con = get_con()
-    # create_schema(con)
-
-    # for i, (chunk, emb) in enumerate(zip(chunks, embeddings)):
-    #     con.execute(
-    #         """
-    #         INSERT INTO pr_index
-    #         (url, file_name, type, year, month, quarter, chunk_index, content, emb)
-    #         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    #         """,
-    #         [
-    #             url,
-    #             file_name,
-    #             doc_type,
-    #             year,
-    #             month,
-    #             quarter,
-    #             i,
-    #             chunk,
-    #             emb.astype(np.float32).tobytes(),  # store as blob
-    #         ]
-    #     )
-
+# Instantiate DB object
+db = Database()
 
 async def fetch_many_press_releases(urls: list[str]) -> list[str]:
     """
@@ -123,7 +91,13 @@ def prepare_pr_info_for_fetch(url: str) -> dict:
 
 
 async def fetch_press_release(url: str) -> str:
-
+    '''
+        Fetch a press release.
+        Args:
+            url: The URL of the press release
+        Returns:
+            The path to the markdown file
+    '''
     # :::::: Crawl and download MD  :::::: #
     
     logger.info("Running fetch_press_release")
@@ -131,15 +105,16 @@ async def fetch_press_release(url: str) -> str:
     report_type, report_date, file_name, file_dir, meta_data = prepare_pr_info_for_fetch(url)
 
     logger.info(f"Meta data of fetch press release: {meta_data}")
-
+    
+    result = None
     if report_type is not None:
         # Crawl and save the markdown file
-        await crawler.crawl_and_save_markdown(url, 
+        result = await crawler.crawl_and_save_markdown(url, 
                                         file_dir, 
                                         file_name_strategy = 'customized', 
                                         user_defined_file_name = file_name, 
                                         meta_data = meta_data)
-
+    return result
 
 def try_rm_junk_part_for_pr(md_text: str) -> str:
     '''
@@ -252,7 +227,7 @@ def turn_md_into_blocks_pr(md_text: str) -> tuple[list[str], list[list[str]]]:
     return (parents, children_groups)
 
 
-def split_md_to_chunks_pr_m(md_text: str) -> str:
+def split_md_to_chunks_pr(md_text: str) -> str:
     '''
         Try to separate the content into chunks, it's preparing for the content embedding process.
 
@@ -316,15 +291,108 @@ def split_md_to_chunks_pr_m(md_text: str) -> str:
     return chunks_out
 
 
-def parse_pr_m(file_path: str) -> str:
-    '''
-        Parse the monthly press release.
-    '''
-    md_raw = utils.read_file(file_path)
-    md_raw = try_rm_junk_part_for_pr(md_raw)
-    md_chunks = split_md_to_chunks_pr_m(md_raw)
+def embed_and_upload_pr_chunks(chunks, url, report_name, report_type, year, month, quarter):
 
-    return md_chunks
+    # :::::: 1. Compute embeddings :::::: #
+    embeddings = get_embedder()(chunks)
+
+    for i, (chunk, emb) in enumerate(zip(chunks, embeddings)):
+        print(chunk)
+        print(f"Embedding length: {len(emb)}")
+        print("="*100)
+
+    # :::::: 2. Insert into DB :::::: #
+
+    for i, (chunk, emb) in enumerate(zip(chunks, embeddings)):
+
+        # Create deterministic ID
+        id_str = f"{url}-{report_name}-{i}"
+        id_hash = hashlib.sha256(id_str.encode()).hexdigest()
+
+        # Insert into DB
+        # If the ID already exists, do nothing. Just skip it.
+        db.run_query(
+            """
+            INSERT INTO pr_index
+            (id, url, report_name, report_type, year, month, quarter, chunk_index, content, emb)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO NOTHING
+            """,
+            tuple([
+                id_hash,
+                url,
+                report_name,
+                report_type,
+                year,
+                month,
+                quarter,
+                i,
+                chunk,
+                np.array(emb).astype(np.float32).tobytes(),  # store as blob
+            ])
+        )
+
+    logger.info(f"Handled {len(chunks)} embedded chunks insertion to DB. If ID already exists, it's skipped.")
+
+
+async def ingest_pr_md_file(file_path: str) -> bool:
+    '''
+        Parse the press release and upload to vector database.
+    '''
+    logger.info(f"Ingesting press release MD file: {file_path}")
+    
+    # Get the raw markdown and meta data
+    md_raw = utils.read_file(file_path)
+    meta_data = utils.get_meta_file(file_path)
+   
+    # Clean and chunk the markdown
+    md_cleaned = try_rm_junk_part_for_pr(md_raw)
+    md_chunks = split_md_to_chunks_pr(md_cleaned)
+
+    # Get meta data details
+    url = meta_data['url']
+    report_name = meta_data['report_name']
+    report_type = meta_data['report_type']
+    year = meta_data['year']
+    month = meta_data['month']
+    quarter = meta_data['quarter']
+
+    # Embed and upload to DB
+    embed_and_upload_pr_chunks(md_chunks, url, report_name, report_type, year, month, quarter)
+
+    return True
+
+
+async def ingest_many_pr_md_files(file_paths: list[str]) -> bool:
+    '''
+        Parse many press releases concurrently.
+    '''
+    tasks = [ingest_pr_md_file(file_path) for file_path in file_paths]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    return all(results)
+
+
+async def ingest_all_pr_md_in_storage() -> bool:
+    """
+    Parse all press releases in the storage.
+    Returns True if parsing ran, False if nothing to parse.
+    """
+    if not os.path.exists(PR_FILES_FOLDER_PATH_STR):
+        logger.warning(f"Storage folder not found: {PR_FILES_FOLDER_PATH_STR}")
+        return False
+
+    file_paths = [
+        os.path.join(PR_FILES_FOLDER_PATH_STR, file_name)
+        for file_name in os.listdir(PR_FILES_FOLDER_PATH_STR)
+        if file_name.endswith(".md")
+    ]
+
+    if not file_paths:
+        logger.info("No .md press release files found in storage.")
+        return False
+
+    await ingest_many_pr_md_files(file_paths)
+    return True
 
 
 def get_report_type(url: str) -> str:
