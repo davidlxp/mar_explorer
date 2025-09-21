@@ -1,25 +1,23 @@
 import os
 import sys
 from pathlib import Path
-from dotenv import load_dotenv
+import logging
 
-# Get the project root directory
+# Add project root to Python path
 project_root = Path(__file__).parent.parent
-# Load environment variables from .env file in project root
-load_dotenv(project_root / '.env')
+sys.path.insert(0, str(project_root))
 
 import streamlit as st
 from services import task_handle_mar, task_handle_pr, nlq, logs
 
-# Verify Snowflake credentials are loaded
-required_env_vars = ['SNOWFLAKE_USER', 'SNOWFLAKE_PASSWORD', 'SNOWFLAKE_ACCOUNT', 'SNOWFLAKE_WAREHOUSE']
-missing_vars = [var for var in required_env_vars if var not in os.environ]
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-if missing_vars:
-    st.error(f"❌ Missing required environment variables: {', '.join(missing_vars)}")
-    st.info("Please check your .env file and ensure all required variables are set.")
-    st.stop()
-
+# Page config
 st.set_page_config(layout="wide", page_title="Tradeweb MAR Explorer")
 st.title("📊 Tradeweb MAR Explorer")
 
@@ -42,26 +40,37 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Create a session state to track processing status
-if 'processing' not in st.session_state:
-    st.session_state.processing = False
+# Initialize session state
+if 'mar_status' not in st.session_state:
+    st.session_state.mar_status = None
 
-# Single button for MAR update
-if st.sidebar.button("🔄 Update Latest MAR", disabled=st.session_state.processing):
-    st.session_state.processing = True
-    status_container = st.sidebar.empty()
-    
+# Create placeholder for status
+status_placeholder = st.sidebar.empty()
+
+def update_mar():
+    """Function to handle MAR update"""
     try:
-        status_container.info("⏳ Processing MAR update...")
-        task_handle_mar.handle_mar_update(None)  # Pass None since we're not using a file
-        status_container.success("✅ MAR update successful!")
+        logger.info("Starting MAR update...")
+        task_handle_mar.update_mar_with_latest_file()
+        logger.info("MAR update completed")
+        return True
     except Exception as e:
-        import traceback
-        status_container.error("❌ Error during MAR update")
-        with st.sidebar.expander("See error details"):
-            st.code(traceback.format_exc())
-    finally:
-        st.session_state.processing = False
+        logger.error(f"Error in MAR update: {str(e)}")
+        return False
+
+# MAR Update button
+if st.sidebar.button("🔄 Update Latest MAR"):
+    with status_placeholder.container():
+        st.info("⏳ Processing MAR update...")
+        try:
+            success = update_mar()
+            if success:
+                st.success("✅ MAR update completed!")
+            else:
+                st.error("❌ MAR update failed!")
+        except Exception as e:
+            st.error("❌ Error during update")
+            st.exception(e)
 
 # :::::: Chat box :::::: #
 st.markdown("---")

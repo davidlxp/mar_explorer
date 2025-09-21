@@ -10,6 +10,7 @@ import duckdb
 import pathlib
 from pathlib import Path
 import logging
+from dotenv import load_dotenv
 
 # Configure logging
 logging.basicConfig(
@@ -32,16 +33,37 @@ class SnowflakeDB(Database):
         return cls._instance
 
     def __init__(self):
+        # Ensure environment variables are loaded
+        project_root = Path(__file__).parent.parent.parent
+        load_dotenv(project_root / '.env')
+        
         if SnowflakeDB._conn is None:
             logger.info("Creating new Snowflake connection")
-            SnowflakeDB._conn = snowflake.connector.connect(
-                user=os.environ['SNOWFLAKE_USER'],
-                password=os.environ['SNOWFLAKE_PASSWORD'],
-                account=os.environ['SNOWFLAKE_ACCOUNT'],
-                warehouse=os.environ['SNOWFLAKE_WAREHOUSE'],
-                database='mar_explorer',
-                schema='main'
-            )
+            
+            # Check required environment variables
+            required_vars = ['SNOWFLAKE_USER', 'SNOWFLAKE_PASSWORD', 'SNOWFLAKE_ACCOUNT', 'SNOWFLAKE_WAREHOUSE']
+            missing_vars = [var for var in required_vars if not os.getenv(var)]
+            
+            if missing_vars:
+                raise ValueError(f"Missing required Snowflake environment variables: {', '.join(missing_vars)}")
+            
+            # Log connection attempt (without sensitive data)
+            logger.info(f"Attempting Snowflake connection with user: {os.getenv('SNOWFLAKE_USER')} and account: {os.getenv('SNOWFLAKE_ACCOUNT')}")
+            
+            try:
+                SnowflakeDB._conn = snowflake.connector.connect(
+                    user=os.getenv('SNOWFLAKE_USER'),
+                    password=os.getenv('SNOWFLAKE_PASSWORD'),
+                    account=os.getenv('SNOWFLAKE_ACCOUNT'),
+                    warehouse=os.getenv('SNOWFLAKE_WAREHOUSE'),
+                    database='mar_explorer',
+                    schema='main'
+                )
+                logger.info("Successfully connected to Snowflake")
+            except Exception as e:
+                logger.error(f"Failed to connect to Snowflake: {str(e)}")
+                raise
+                
         self.conn = SnowflakeDB._conn
 
     def _run_migrations(self):
@@ -55,7 +77,6 @@ class SnowflakeDB(Database):
         for sql_file in migrations:
             logger.info(f"Running migration: {sql_file}")
             with open(sql_file, "r") as f:
-                # Read the entire SQL file
                 sql = f.read()
                 logger.info(f"Raw SQL content: {repr(sql)}")  # Debug line to see exact content
                 
