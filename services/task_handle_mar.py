@@ -143,6 +143,77 @@ def parse_mar_to_file(file, sheet_name):
 
     return True
 
+def combine_latest_mar(file_type='monthly'):
+    '''
+    Combines the latest MAR files based on the file type (monthly, quarterly, yearly).
+    Currently supports combining ADV and Volume files.
+    
+    Args:
+        file_type (str): Type of files to combine. One of 'monthly', 'quarterly', 'yearly'
+        
+    Returns:
+        bool: True if operation was successful
+    '''
+    # Map file_type to suffix
+    type_suffix_map = {
+        'monthly': '_m',
+        'quarterly': '_q',
+        'yearly': '_y'
+    }
+    
+    if file_type not in type_suffix_map:
+        logger.error(f'Invalid file_type: {file_type}. Must be one of {list(type_suffix_map.keys())}')
+        return False
+        
+    suffix = type_suffix_map[file_type]
+    
+    # Get the folder with the latest data
+    folder_path = Path(MAR_FILES_FOLDER_PATH_STR)
+    latest_year_month = max((p for p in folder_path.iterdir() if p.is_dir()),
+                        key=lambda x: datetime.strptime(x.name, "%Y-%m")).name
+    
+    # The files' path
+    latest_files_path = f'{MAR_FILES_FOLDER_PATH_STR}/{latest_year_month}'
+    adv_file = f'{latest_files_path}/mar_adv{suffix}.parquet'
+    volume_file = f'{latest_files_path}/mar_volume{suffix}.parquet'
+    
+    # Check if both files exist
+    if os.path.exists(adv_file) and os.path.exists(volume_file):
+        logger.info(f'Found both ADV and Volume files ({file_type}) in {latest_year_month}. Combining them...')
+        
+        # Read both files
+        df_adv = pd.read_parquet(adv_file)
+        df_volume = pd.read_parquet(volume_file)
+        
+        # Rename volume column in ADV to avg_volume
+        df_adv = df_adv.rename(columns={'volume': 'avg_volume'})
+        
+        # Perform full outer join
+        df_combined = pd.merge(
+            df_adv,
+            df_volume,
+            on=['asset_class', 'product', 'product_type', 'year_month'],
+            how='outer',
+            suffixes=('', '_y')  # Only add suffix to right table's duplicate columns
+        )
+        
+        # Drop duplicate year and month columns from the right table
+        columns_to_drop = ['year_y', 'month_y']
+        df_combined = df_combined.drop(columns=[col for col in columns_to_drop if col in df_combined.columns])
+
+        # Enforce the schema
+        df_combined = enforce_schema(df_combined, MAR_COMBINED_M_SCHEMA)
+        
+        # Save the combined file
+        combined_file = f'{latest_files_path}/mar_combined{suffix}.parquet'
+        df_combined.to_parquet(combined_file, index=False)
+        logger.info(f'Saved combined file to {combined_file}')
+
+        return True
+    
+    logger.info(f'Either ADV or Volume file ({file_type}) is missing. No combination needed.')
+    return True
+
 def update_db_with_latest_mar():
     '''
         Module ingests all parsed MAR files into the database.
@@ -166,4 +237,8 @@ def update_db_with_latest_mar():
         logger.info(f'Loaded {file_name} to {table_name}')
 
     logger.info(f'Loaded the latest MAR files to tables. The latest year and month is {latest_year_month}')
+    
+    # Try to combine ADV and Volume files if they both exist
+    combine_latest_mar('monthly')  # For now, we only have monthly data
+    
     return True

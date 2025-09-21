@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS mar_volume_m (
     year_month VARCHAR,
     year NUMBER(4,0),
     month NUMBER(2,0),
-    volume DOUBLE PRECISION
+    volume DOUBLE PRECISION,
+    avg_volume DOUBLE PRECISION
 );
 
 -- MAR Trade Days (monthly)
