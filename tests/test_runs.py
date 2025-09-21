@@ -4,6 +4,7 @@ import services.crawler as crawler
 import services.task_handle_mar as task_mar
 import logging
 import asyncio
+from services.constants import *
 
 import services.task_handle_pr as task_pr
 
@@ -25,7 +26,7 @@ PR_URLs = [
 PR_AND_NOISE_URLs = [
     "https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-august-2025-total-trading-volume-of--$54.1-trillion-and-average-daily-volume-of-$2.5-trillion",
     "https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-july-2025-total-trading-volume-of--$55.0-trillion-and-average-daily-volume-of-$2.4-trillion",
-    'https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-first-quarter-2025-financial-results/'
+    'https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-first-quarter-2025-financial-results/',
     "https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-second-quarter-2025-financial-results/",
     'https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-fourth-quarter-and-full-year-2021-financial-results/',
     'https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-february-2019-trade-volume/',
@@ -112,3 +113,23 @@ def test_run_fetch_press_release():
 def test_run_fetch_many_press_releases():
     logger.info("Running test_run_fetch_many_press_releases")
     asyncio.run(task_pr.fetch_many_press_releases(PR_AND_NOISE_URLs))
+
+
+def test_run_parse_pr_m():
+    logger.info("Running test_run_parse_pr_m")
+
+    # file_name = 'tradeweb_reports-monthly-2025_08'
+    # file_name = 'tradeweb_reports-monthly-2023_05'
+    # file_name = 'tradeweb_reports-monthly-2019_02'
+    file_name = 'tradeweb_reports-quarterly-2025_q2'
+    # file_name = 'tradeweb_reports-yearly-2021'
+
+    file_path = f'{PR_FILES_FOLDER_PATH_STR}/{file_name}.md'
+
+    md_chunks = task_pr.parse_pr_m(file_path)
+
+    print("="*100)
+    for chunk in md_chunks:
+        print(chunk)
+        print("\n\n")
+        print("="*100)

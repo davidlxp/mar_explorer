@@ -141,23 +141,6 @@ async def fetch_press_release(url: str) -> str:
                                         meta_data = meta_data)
 
 
-
-    # :::::: Parse the press release :::::: #
-
-
-    # file_dir = 'storage/raw_files/pr_files/'
-
-    # # file_name = 'tradeweb_reports-monthly-2025_08'
-    # # file_name = 'tradeweb_reports-monthly-2023_05'
-    # # file_name = 'tradeweb_reports-monthly-2019_02'
-    # # file_name = 'tradeweb_reports-quarterly-2025_q1'
-    # file_name = 'tradeweb_reports-yearly-2021'
-
-    # file_path = f'{file_dir}{file_name}.md'
-
-    # parse_pr_m(file_path)
-
-
 def try_rm_junk_part_for_pr(md_text: str) -> str:
     '''
         Try to remove the no-need part of press release. Handles monthly, quarterly or yearly press releases.
@@ -341,11 +324,7 @@ def parse_pr_m(file_path: str) -> str:
     md_raw = try_rm_junk_part_for_pr(md_raw)
     md_chunks = split_md_to_chunks_pr_m(md_raw)
 
-    print("="*100)
-    for chunk in md_chunks:
-        print(chunk)
-        print("\n\n")
-        print("="*100)
+    return md_chunks
 
 
 def get_report_type(url: str) -> str:

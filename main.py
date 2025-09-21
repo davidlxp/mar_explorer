@@ -34,8 +34,9 @@ if __name__ == "__main__":
     # test_runs.test_run_query_pr_index()
     # test_runs.test_run_ALL()
     # test_runs.test_run_crawler_one()
-    test_runs.test_run_fetch_press_release()
+    # test_runs.test_run_fetch_press_release()
     # test_runs.test_run_fetch_many_press_releases()
+    test_runs.test_run_parse_pr_m()
 
 
 
