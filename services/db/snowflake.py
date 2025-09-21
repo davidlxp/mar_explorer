@@ -23,15 +23,26 @@ MIGRATIONS_DIR = pathlib.Path("services/migrations/snowflake")
 from .base import Database
 
 class SnowflakeDB(Database):
+    _instance = None
+    _conn = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(SnowflakeDB, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self):
-        self.conn = snowflake.connector.connect(
-            user=os.environ['SNOWFLAKE_USER'],
-            password=os.environ['SNOWFLAKE_PASSWORD'],
-            account=os.environ['SNOWFLAKE_ACCOUNT'],
-            warehouse=os.environ['SNOWFLAKE_WAREHOUSE'],
-            database='mar_explorer',
-            schema='main'
-        )
+        if SnowflakeDB._conn is None:
+            logger.info("Creating new Snowflake connection")
+            SnowflakeDB._conn = snowflake.connector.connect(
+                user=os.environ['SNOWFLAKE_USER'],
+                password=os.environ['SNOWFLAKE_PASSWORD'],
+                account=os.environ['SNOWFLAKE_ACCOUNT'],
+                warehouse=os.environ['SNOWFLAKE_WAREHOUSE'],
+                database='mar_explorer',
+                schema='main'
+            )
+        self.conn = SnowflakeDB._conn
 
     def _run_migrations(self):
         '''

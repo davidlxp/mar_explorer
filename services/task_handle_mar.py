@@ -10,7 +10,7 @@ import duckdb
 from pathlib import Path
 from services.db import get_database
 import logging
-from services.schemas import MAR_VOLUME_SCHEMA, MAR_TRADE_DAYS_SCHEMA, MAR_COMBINED_SCHEMA, MAR_FILE_NAMES_FOR_DB
+from services.schemas import MAR_VOLUME_SCHEMA, MAR_TRADE_DAYS_SCHEMA, MAR_COMBINED_SCHEMA
 from services.utils import enforce_schema
 from services.constants import *
 
