@@ -6,7 +6,7 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 # In-memory storage for logs
-_question_logs = []
+_conversation_logs = []
 
 def log_question(question: str, response: str, confidence: float, citations: List[Any]) -> None:
     """
@@ -26,16 +26,20 @@ def log_question(question: str, response: str, confidence: float, citations: Lis
             "confidence": confidence,
             "citations": citations
         }
-        _question_logs.append(log_entry)
+        _conversation_logs.append(log_entry)
         logger.info(f"Logged QA pair: {question[:50]}... -> {response[:50]}...")
     except Exception as e:
         logger.error(f"Error logging question: {str(e)}")
 
 def get_all_logs() -> List[Dict]:
     """Get all logs, sorted by timestamp (newest first)."""
-    return sorted(_question_logs, key=lambda x: x["timestamp"], reverse=True)
+    return sorted(_conversation_logs, key=lambda x: x["timestamp"], reverse=True)
+
+def get_latest_log() -> Dict:
+    """Get the most recent log entry."""
+    return _conversation_logs[-1] if _conversation_logs else None
 
 def clear_logs() -> None:
     """Clear all logs from memory."""
-    _question_logs.clear()
-    logger.info("Cleared all question logs")
+    _conversation_logs.clear()
+    logger.info("Cleared all conversation logs")

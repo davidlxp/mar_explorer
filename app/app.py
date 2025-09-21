@@ -26,6 +26,7 @@ st.set_page_config(layout="wide", page_title="Tradeweb MAR Explorer")
 # Custom CSS
 st.markdown("""
     <style>
+    /* General button styling */
     .stButton > button {
         background-color: #4CAF50;
         color: white;
@@ -36,39 +37,54 @@ st.markdown("""
     .stButton > button:hover {
         background-color: #45a049;
     }
-    .chat-message {
-        padding: 1rem;
-        border-radius: 0.5rem;
-        margin-bottom: 1rem;
-        display: flex;
-        flex-direction: column;
-    }
-    .user-message {
-        background-color: #e3f2fd;
-        align-self: flex-end;
-    }
-    .assistant-message {
-        background-color: #f5f5f5;
-        align-self: flex-start;
-    }
-    .log-modal {
-        max-height: 80vh;
-        overflow-y: auto;
-    }
+    
+    /* Log entry styling */
     .log-entry {
-        border: 1px solid #ddd;
-        padding: 10px;
-        margin: 10px 0;
-        border-radius: 5px;
+        background-color: #f8f9fa;
+        border-left: 4px solid #4CAF50;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 4px;
     }
+    
+    .log-timestamp {
+        color: #666;
+        font-size: 0.9em;
+    }
+    
+    .log-question {
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    
+    .log-response {
+        margin: 10px 0;
+        white-space: pre-wrap;
+    }
+    
     .confidence-high {
         color: #4CAF50;
     }
+    
     .confidence-medium {
         color: #FFA726;
     }
+    
     .confidence-low {
         color: #EF5350;
+    }
+    
+    .citations-section {
+        margin-top: 10px;
+        font-size: 0.9em;
+        color: #666;
+        border-top: 1px solid #eee;
+        padding-top: 10px;
+    }
+
+    /* Hide Streamlit elements when modal is open */
+    [data-modal-is-open="true"] .main {
+        filter: blur(4px);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -112,6 +128,41 @@ with dashboard_container:
     st.info("Dashboard space reserved for future visualizations")
     st.markdown("---")
 
+# Logs Dialog using Streamlit's native components
+if st.session_state.show_logs:
+    with st.expander("📋 Interaction History", expanded=True):
+        col1, col2 = st.columns([10, 1])
+        with col2:
+            if st.button("✕", key="close_logs"):
+                st.session_state.show_logs = False
+                st.rerun()
+        
+        all_logs = logs.get_all_logs()
+        if not all_logs:
+            st.info("No interaction history yet.")
+        else:
+            for log in all_logs:
+                with st.container():
+                    st.markdown(f"""
+                    <div class="log-entry">
+                        <div class="log-timestamp">
+                            {datetime.fromisoformat(log['timestamp']).strftime('%Y-%m-%d %H:%M:%S')}
+                        </div>
+                        <div class="log-question">Q: {log['question']}</div>
+                        <div class="log-response">A: {log['response']}</div>
+                        <div class="confidence-{
+                            'high' if log['confidence'] > 0.8
+                            else 'medium' if log['confidence'] > 0.5
+                            else 'low'
+                        }">
+                            Confidence: {log['confidence']:.2f}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    with st.expander("View Citations"):
+                        st.json(log['citations'])
+
 # Chat interface
 st.markdown("### 💬 Ask MAR")
 
@@ -128,15 +179,20 @@ for msg in st.session_state.messages:
 
 # Chat input
 if prompt := st.chat_input("Ask about MAR data or press releases..."):
-    # Add user message to chat
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    
-    # Get AI response
-    with st.spinner("Thinking..."):
-        try:
+    try:
+        # Add user message to chat and display immediately
+        user_msg = {"role": "user", "content": prompt}
+        st.session_state.messages.append(user_msg)
+        
+        # Display user message
+        with st.chat_message("user"):
+            st.write(prompt)
+        
+        # Get AI response
+        with st.spinner("Thinking..."):
             answer, data, confidence = nlq.process_question(prompt)
             
-            # Add assistant response to chat
+            # Create assistant response
             response_msg = {
                 "role": "assistant",
                 "content": answer,
@@ -146,7 +202,15 @@ if prompt := st.chat_input("Ask about MAR data or press releases..."):
             if data and data.get("visualization"):
                 response_msg["visualization"] = data["visualization"]
             
+            # Add to session state
             st.session_state.messages.append(response_msg)
+            
+            # Display assistant response immediately
+            with st.chat_message("assistant"):
+                st.write(answer)
+                if data and data.get("visualization"):
+                    fig = pio.from_json(json.dumps(data["visualization"]))
+                    st.plotly_chart(fig, use_container_width=True)
             
             # Log the interaction
             logs.log_question(
@@ -156,41 +220,13 @@ if prompt := st.chat_input("Ask about MAR data or press releases..."):
                 citations=data.get("results", []) if data else []
             )
             
-        except Exception as e:
-            st.error("❌ Error processing your question")
-            logger.error(f"Error in chat: {str(e)}")
-            with st.expander("See error details"):
-                st.exception(e)
+    except Exception as e:
+        st.error("❌ Error processing your question")
+        logger.error(f"Error in chat: {str(e)}")
+        with st.expander("See error details"):
+            st.exception(e)
 
-# Logs modal
-if st.session_state.show_logs:
-    with st.expander("Interaction Logs", expanded=True):
-        st.markdown("### 📋 Interaction History")
-        
-        # Add close button
-        if st.button("Close Logs"):
-            st.session_state.show_logs = False
-            st.rerun()
-        
-        # Display logs in scrollable container
-        log_container = st.container()
-        with log_container:
-            all_logs = logs.get_all_logs()
-            for log in all_logs:
-                with st.container():
-                    st.markdown(f"""
-                    <div class="log-entry">
-                        <p><strong>Time:</strong> {datetime.fromisoformat(log['timestamp']).strftime('%Y-%m-%d %H:%M:%S')}</p>
-                        <p><strong>Question:</strong> {log['question']}</p>
-                        <p><strong>Response:</strong> {log['response']}</p>
-                        <p><strong>Confidence:</strong> <span class="confidence-{'high' if log['confidence'] > 0.8 else 'medium' if log['confidence'] > 0.5 else 'low'}">{log['confidence']:.2f}</span></p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    with st.expander("View Citations"):
-                        st.json(log['citations'])
-
-# Clear chat button (at the bottom)
+# Clear chat button
 if st.session_state.messages and st.button("Clear Chat"):
     st.session_state.messages = []
     st.rerun()

@@ -18,6 +18,42 @@ client = OpenAI()
 # Initialize database connection
 db = get_database()
 
+# Load available products configuration
+with open(Path(__file__).parent.parent / 'storage/nlq_context/tradeweb_available_products.json', 'r') as f:
+    AVAILABLE_PRODUCTS = json.load(f)
+
+# Create lookup sets for validation
+VALID_ASSET_CLASSES = {p["ASSET_CLASS"].lower() for p in AVAILABLE_PRODUCTS}
+VALID_PRODUCTS = {p["PRODUCT"].lower() for p in AVAILABLE_PRODUCTS}
+VALID_PRODUCT_TYPES = {p["PRODUCT_TYPE"].lower() for p in AVAILABLE_PRODUCTS}
+
+# Create full product combinations for validation
+VALID_COMBINATIONS = {
+    (p["ASSET_CLASS"].lower(), p["PRODUCT"].lower(), p["PRODUCT_TYPE"].lower())
+    for p in AVAILABLE_PRODUCTS
+}
+
+def validate_product_query(asset_class: str = None, product: str = None, product_type: str = None) -> Tuple[bool, str]:
+    """
+    Validate if the product combination exists in our database.
+    Returns: (is_valid, error_message)
+    """
+    if asset_class and asset_class.lower() not in VALID_ASSET_CLASSES:
+        return False, f"Invalid asset class. Available options are: {', '.join(sorted(VALID_ASSET_CLASSES))}"
+        
+    if product and product.lower() not in VALID_PRODUCTS:
+        return False, f"Invalid product. Available options are: {', '.join(sorted(VALID_PRODUCTS))}"
+        
+    if product_type and product_type.lower() not in VALID_PRODUCT_TYPES:
+        return False, f"Invalid product type. Please check available combinations."
+        
+    if asset_class and product and product_type:
+        combo = (asset_class.lower(), product.lower(), product_type.lower())
+        if combo not in VALID_COMBINATIONS:
+            return False, "This combination of asset class, product, and product type is not available."
+            
+    return True, ""
+
 # Configuration for supported data types
 SUPPORTED_DATA_TYPES = {
     "monthly": True,    # Currently supported
@@ -30,10 +66,17 @@ SYSTEM_PROMPT = """You are TradeWeb's MAR Explorer, an AI assistant specifically
 
 Your primary capabilities:
 1. Query and analyze MAR data from our database, which contains:
-   - asset_class (e.g., Rates, Credit)
-   - product and product_type
-   - volume and avg_volume (ADV) metrics
-   - monthly data points with year and month information
+   - Asset Classes: Rates, Credit, Equities, Money Markets
+   - Products: Cash, Derivatives
+   - Product Types: Various specific products under each asset class
+   - Metrics: volume and avg_volume (ADV)
+   - Time: monthly data points with year and month information
+
+You must only use valid combinations of asset_class, product, and product_type as defined in our database. For example:
+- Rates + Cash + Mortgages
+- Credit + Cash + European Credit
+- Equities + Derivatives + Futures
+Invalid combinations will be rejected.
 
 2. Search and explain TradeWeb's financial press releases for context and event analysis
 
@@ -202,6 +245,20 @@ def execute_function(func_name: str, params: Dict) -> Dict:
     """Execute the specified function with parameters"""
     try:
         if func_name == "query_mar_data":
+            # Validate product filters if present
+            if "filters" in params:
+                filters = params["filters"]
+                is_valid, error_msg = validate_product_query(
+                    asset_class=filters.get("asset_class"),
+                    product=filters.get("product"),
+                    product_type=filters.get("product_type")
+                )
+                if not is_valid:
+                    return {
+                        "type": "error",
+                        "content": error_msg
+                    }
+            
             query = build_sql_query(params)
             logger.info(f"Executing query: {query}")
             df = db.fetchdf(query)
