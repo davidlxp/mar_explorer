@@ -121,11 +121,91 @@ with st.sidebar:
 # Main content area
 st.title("📊 Tradeweb MAR Explorer")
 
-# Reserved space for dashboard/visualization
+# Dashboard/visualization section
 dashboard_container = st.container()
 with dashboard_container:
     st.markdown("### 📈 Dashboard")
-    st.info("Dashboard space reserved for future visualizations")
+    
+    # Import visualization components
+    from services.visualization_logic import VolumeVisualizer
+    import plotly.io as pio
+    
+    # Initialize visualizer
+    visualizer = VolumeVisualizer()
+    
+    try:
+        # Get filter options
+        filter_options = visualizer.get_filter_options()
+        
+        # Create filter columns
+        filter_col1, filter_col2, filter_col3 = st.columns(3)
+        
+        with filter_col1:
+            # Asset Class filter
+            selected_asset_classes = st.multiselect(
+                "Asset Class",
+                options=filter_options['asset_classes'],
+                default=filter_options['asset_classes']
+            )
+            
+            # Year filter
+            selected_years = st.multiselect(
+                "Year",
+                options=filter_options['years'],
+                default=filter_options['years']
+            )
+        
+        with filter_col2:
+            # Product filter
+            selected_products = st.multiselect(
+                "Product",
+                options=filter_options['products'],
+                default=filter_options['products']
+            )
+            
+            # Month filter
+            selected_months = st.multiselect(
+                "Month",
+                options=filter_options['months'],
+                default=filter_options['months']
+            )
+        
+        with filter_col3:
+            # Product Type filter
+            selected_product_types = st.multiselect(
+                "Product Type",
+                options=filter_options['product_types'],
+                default=filter_options['product_types']
+            )
+        
+        # Get dashboard data based on filters
+        dashboard_data = visualizer.get_dashboard_data(
+            asset_classes=selected_asset_classes if selected_asset_classes else None,
+            products=selected_products if selected_products else None,
+            product_types=selected_product_types if selected_product_types else None,
+            years=selected_years if selected_years else None,
+            months=selected_months if selected_months else None
+        )
+        
+        # Display the dashboard
+        if dashboard_data:
+            st.plotly_chart(dashboard_data['figure'], use_container_width=True)
+            
+            # Optional: Display raw data
+            if st.checkbox("Show raw data"):
+                tab1, tab2 = st.tabs(["Monthly Trend", "Asset Class Breakdown"])
+                with tab1:
+                    st.dataframe(dashboard_data['trend_data'])
+                with tab2:
+                    st.dataframe(dashboard_data['asset_data'])
+        else:
+            st.warning("No data available for the selected filters")
+            
+    except Exception as e:
+        st.error("Error loading dashboard")
+        with st.expander("See error details"):
+            st.exception(e)
+    
     st.markdown("---")
 
 # Logs Dialog using Streamlit's native components

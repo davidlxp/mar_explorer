@@ -89,6 +89,8 @@ Data Query Guidelines:
    - When users ask about "ADV", "average volume", "average daily volume" → query the 'avg_volume' metric
    - If no specific asset class is mentioned, query total volume across all asset classes
    - Always include the 'volume' metric in your query when users ask about trading activity
+   - For comparative questions (e.g., "compared to last year"), use the previous query's filters but update the time period
+   - When comparing periods, query both periods in a single request using GROUP BY year_month
 
 2. For time periods:
    - Extract month and year from queries like "August 2025", "in 2025 August", "for August 2025"
@@ -203,7 +205,9 @@ FUNCTION_DEFINITIONS = [
 _conversation_context = {
     "awaiting_clarification": False,
     "original_question": None,
-    "clarification_type": None
+    "clarification_type": None,
+    "last_query_params": None,  # Store the last successful query parameters
+    "last_query_results": None  # Store the last query results
 }
 
 def analyze_question(question: str) -> Tuple[bool, str, float]:
@@ -345,6 +349,11 @@ def execute_function(func_name: str, params: Dict) -> Dict:
             query = build_sql_query(params)
             logger.info(f"Executing query: {query}")
             df = db.fetchdf(query)
+            
+            # Store successful query params and results
+            _conversation_context["last_query_params"] = params
+            _conversation_context["last_query_results"] = df.to_dict(orient="records")
+            
             return {
                 "type": "data",
                 "content": df.to_dict(orient="records"),
@@ -420,8 +429,17 @@ def process_question(question: str) -> Tuple[str, Dict, float]:
         # Get function calls from OpenAI
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": question}
         ]
+        
+        # Add context from previous query if available
+        if _conversation_context["last_query_params"] and _conversation_context["last_query_results"]:
+            context_msg = {
+                "role": "assistant",
+                "content": "Previous query context:\n" + format_data_summary(_conversation_context["last_query_results"])
+            }
+            messages.append(context_msg)
+            
+        messages.append({"role": "user", "content": question})
         
         response = client.chat.completions.create(
             model="gpt-4",
