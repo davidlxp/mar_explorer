@@ -25,7 +25,6 @@ class BreakdownQueryResult:
     task_id: int
     task_to_do: str
     reason: str
-    dependency_on: Optional[set] = None
 
 @dataclass
 class PlanningResult:

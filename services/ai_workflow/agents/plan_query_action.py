@@ -110,8 +110,7 @@ def get_plan_query_action_system_prompt(schema: Any, products: Dict[str, Any], s
 
     For aggregation tasks:
     1. Set helper_for_action to null (aggregations are done after getting parent task results)
-    2. Make sure to set appropriate dependencies on tasks that provide the data
-    3. Set confidence based on how certain you are about the aggregation approach
+    2. Set confidence based on how certain you are about the aggregation approach
     
     For irrelevant queries:
     1. Return null as helper_for_action
@@ -182,7 +181,6 @@ def plan_query_action(task: BreakdownQueryResult, parent_plans: Dict[int, Planni
         
         return PlanningResult(
             task_id=task.task_id,
-            dependency_on=task.dependency_on,
             task_to_do=task.task_to_do,
             todo_intent=TodoIntent(result["todo_intent"]),
             helper_for_action=result["helper_for_action"],
@@ -194,7 +192,6 @@ def plan_query_action(task: BreakdownQueryResult, parent_plans: Dict[int, Planni
         print(f"Error analyzing query: {e}")
         return PlanningResult(
             task_id=task.task_id,
-            dependency_on=task.dependency_on,
             task_to_do=task.task_to_do,
             todo_intent=TodoIntent.CONTEXT,
             helper_for_action=None,
@@ -204,36 +201,25 @@ def plan_query_action(task: BreakdownQueryResult, parent_plans: Dict[int, Planni
 
 def plan_all_tasks(breakdown_results: List[BreakdownQueryResult]) -> Dict[int, PlanningResult]:
     """
-    Plan all tasks in dependency order.
+    Plan all tasks in order.
     
     Args:
-        breakdown_results: List of tasks with their dependencies
+        breakdown_results: List of tasks to plan
         
     Returns:
         Dictionary mapping task_id to its planning result
     """
     all_planned_results = {}
     
-    # Keep processing until all tasks are done
-    while len(all_planned_results) < len(breakdown_results):
-        # Find tasks that can be executed (all dependencies satisfied)
-        for task in breakdown_results:
-            if task.task_id in all_planned_results:
-                continue
-                
-            # If dependencies are not met yet, skip
-            if task.dependency_on and not task.dependency_on.issubset(all_planned_results.keys()):
-                continue
-            
-            print(f"\Planning Task {task.task_id}:")
-            if task.dependency_on:
-                print(f"Using results from Task {task.dependency_on}")
-            
-            # Execute the task with parent plans
-            res = plan_query_action(task, all_planned_results)
-            
-            # Store results
-            all_planned_results[task.task_id] = res
+    # Process tasks in order of task_id
+    for task in sorted(breakdown_results, key=lambda x: x.task_id):
+        print(f"\Planning Task {task.task_id}:")
+        
+        # Execute the task with parent plans
+        res = plan_query_action(task, all_planned_results)
+        
+        # Store results
+        all_planned_results[task.task_id] = res
     
     return all_planned_results
 

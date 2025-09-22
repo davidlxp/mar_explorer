@@ -42,15 +42,8 @@ def get_breakdown_tools() -> List[Dict[str, Any]]:
                                         "type": "string",
                                         "description": "Why this task is needed and why it can't be combined with other tasks"
                                     },
-                                    "dependency_on": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "integer"
-                                        },
-                                        "description": "List of task_ids that must be completed before this task can start. Empty array means no dependencies. Please avoid circular dependencies!"
-                                    }
                                 },
-                                "required": ["task_id", "task", "reason", "dependency_on"]
+                                "required": ["task_id", "task", "reason"]
                             }
                         }
                     },
@@ -112,11 +105,12 @@ def get_breakdown_system_prompt(completed_tasks: List[Dict[str, Any]] = None, co
           Example: "Calculate correlation between X and Y over time"
           → Needs breakdown: Get raw data first, then process
     
-    3. Dependency Management:
+    3. Task Structure and Order:
        - Each task must have a unique task_id (starting from 1)
-       - The task with smaller task_id will be executed eariler than the task with larger task_id
+       - Tasks are executed in order of task_id (smaller task_id first)
+       - Later tasks can build upon results from earlier tasks
        
-    4. Task Structure:
+    4. Task Components:
        - task_id: Unique integer identifier
        - task: Clear description of what to do
        - reason: MUST explain why this can't be combined with other tasks
@@ -130,14 +124,12 @@ def get_breakdown_system_prompt(completed_tasks: List[Dict[str, Any]] = None, co
         {
           "task_id": 1,
           "task": "Get ADV data for cash products for August 2024 and 2025",
-          "reason": "Need raw ADV data for both years for comparison",
-          "dependency_on": []
+          "reason": "Need raw ADV data for both years for comparison"
         },
         {
           "task_id": 2,
           "task": "Calculate and format YoY comparison",
-          "reason": "Need to process the raw data to show meaningful YoY changes",
-          "dependency_on": [1]
+          "reason": "Need to process the raw data to show meaningful YoY changes"
         }
       ]
     }
@@ -149,14 +141,12 @@ def get_breakdown_system_prompt(completed_tasks: List[Dict[str, Any]] = None, co
         {
           "task_id": 1,
           "task": "Calculate market share for credit products",
-          "reason": "Need base numeric data before we can analyze changes",
-          "dependency_on": []
+          "reason": "Need base numeric data before we can analyze changes"
         },
         {
           "task_id": 2,
           "task": "Search for context about credit market share changes",
-          "reason": "Requires different query type (context) and needs task 1's data",
-          "dependency_on": [1]
+          "reason": "Requires different query type (context) and can use task 1's data"
         }
       ]
     }
@@ -201,28 +191,20 @@ def break_down_query(
             return [BreakdownQueryResult(
                 task_id=1,
                 task_to_do="Can't figure out how to break down the query.",
-                reason="Just can't figure it out.",
-                dependency_on=None
+                reason="Just can't figure it out."
             )]
             
         # Extract tasks
         result = response.choices[0].message.tool_calls[0].function.arguments
         data = json.loads(result)
 
-        # Validate task IDs and dependencies
+        # Validate task IDs
         task_ids = set()
         for task in data["tasks"]:
             task_id = task["task_id"]
             if task_id in task_ids:
                 raise ValueError(f"Duplicate task_id: {task_id}")
             task_ids.add(task_id)
-            
-            # Validate dependencies
-            for dep_id in task["dependency_on"]:
-                if dep_id >= task_id:
-                    raise ValueError(f"Invalid dependency: Task {task_id} cannot depend on future task {dep_id}")
-                if dep_id not in task_ids:
-                    raise ValueError(f"Invalid dependency: Task {dep_id} not found for task {task_id}")
         
         # Create BreakdownQueryResult objects
         tasks = []
@@ -230,8 +212,7 @@ def break_down_query(
             tasks.append(BreakdownQueryResult(
                 task_id=task["task_id"],
                 task_to_do=task["task"],
-                reason=task["reason"],
-                dependency_on=set(task["dependency_on"]) if task["dependency_on"] else None
+                reason=task["reason"]
             ))
         
         return tasks
@@ -241,6 +222,5 @@ def break_down_query(
         return [BreakdownQueryResult(
             task_id=1,
             task_to_do="Error analyzing query",
-            reason=str(e),
-            dependency_on=None  # No dependencies for error case
+            reason=str(e)
         )]
