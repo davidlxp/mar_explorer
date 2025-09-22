@@ -22,13 +22,18 @@ class Intent(str, Enum):
     CONTEXT = "context"
     IRRELEVANT = "irrelevant"
 
-# Class holding the result of intent analysis
 @dataclass
-class AnalysisResult:
-    """Result of query analysis containing intent and action helper."""
+class Task:
+    """Multiple tasks can be generated for a single user query."""
     intent: Intent
     helper_for_action: Optional[str]  # SQL query or vector search query or None
     confidence: float = 0.0
+
+# Class holding the result of intent analysis
+@dataclass
+class AnalysisResult:
+    """A list of all tasks generated for a single user query."""
+    tasks: List[Task]
 
 # Class holding the result of a SQL query (numeric task)
 @dataclass
@@ -88,19 +93,26 @@ def analyze_and_decompose(user_query: str) -> AnalysisResult:
         # Parse and validate response
         result = parse_openai_response(response)
         
-        return AnalysisResult(
-            intent=Intent(result["intent"]),
-            helper_for_action=result["helper_for_action"],
-            confidence=result["confidence"]
-        )
+        # Convert results to Task objects
+        tasks = []
+        for task_data in result["tasks"]:
+            tasks.append(Task(
+                intent=Intent(task_data["intent"]),
+                helper_for_action=task_data["helper_for_action"],
+                confidence=task_data["confidence"]
+            ))
+            
+        return AnalysisResult(tasks=tasks)
         
     except Exception as e:
         print(f"Error analyzing query: {e}")
-        return AnalysisResult(
-            intent=Intent.IRRELEVANT,
-            helper_for_action=None,
-            confidence=0.0
-        )
+        return AnalysisResult(tasks=[
+            Task(
+                intent=Intent.IRRELEVANT,
+                helper_for_action=None,
+                confidence=0.0
+            )
+        ])
 
 def handle_user_query(user_query: str) -> AnswerPacket:
     """

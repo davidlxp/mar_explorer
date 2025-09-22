@@ -52,7 +52,10 @@ if __name__ == "__main__":
     # print(mar_prompts.SQL_HELPER_CATALOG_STR)
 
 
-    the_query = "What is the total trading volume of Tradeweb in August 2025?"
+    # the_query = "What is the total trading volume of Tradeweb in August 2025?"
+    # the_query = "Why did Aug 2025 differ from Aug 2026?"
+    # the_query = "What is ADV for Credit in Aug 2025?"
+    the_query = "What is ADV for cash productsin Aug 2025?"
     tasks = mar_orchestrator.analyze_and_decompose(user_query=the_query)
     print(tasks)
 

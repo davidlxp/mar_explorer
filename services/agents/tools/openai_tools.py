@@ -20,25 +20,35 @@ def get_query_analysis_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "analyze_query",
-                "description": "Analyze user query and generate appropriate SQL or search query",
+                "description": "Analyze user query and break it down into tasks needed to resolve the query",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "intent": {
-                            "type": "string",
-                            "enum": ["numeric", "context", "irrelevant"],
-                            "description": "The type of query being made"
-                        },
-                        "helper_for_action": {
-                            "type": "string",
-                            "description": "SQL query for numeric intent, search query for context intent, null for irrelevant"
-                        },
-                        "confidence": {
-                            "type": "number",
-                            "description": "Confidence score between 0 and 1. How confident that you analyzed the user's intention correctly."
+                        "tasks": {
+                            "type": "array",
+                            "description": "List of tasks needed to resolve the query. For irrelevant queries, return just one task.",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "intent": {
+                                        "type": "string",
+                                        "enum": ["numeric", "context", "irrelevant"],
+                                        "description": "The type of this task"
+                                    },
+                                    "helper_for_action": {
+                                        "type": "string",
+                                        "description": "SQL query for numeric intent, search query for context intent, null for irrelevant"
+                                    },
+                                    "confidence": {
+                                        "type": "number",
+                                        "description": "Confidence score between 0 and 1 for this task"
+                                    }
+                                },
+                                "required": ["intent", "helper_for_action", "confidence"]
+                            }
                         }
                     },
-                    "required": ["intent", "helper_for_action", "confidence"]
+                    "required": ["tasks"]
                 }
             }
         }

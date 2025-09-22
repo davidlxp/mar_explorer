@@ -39,32 +39,38 @@ def parse_openai_response(response: Any, default_confidence: float = 0.0) -> Dic
         default_confidence: Default confidence score if none provided
         
     Returns:
-        Dictionary containing parsed response
+        Dictionary containing parsed tasks
         
     Raises:
         json.JSONDecodeError: If response cannot be parsed as JSON
     """
     if not response.choices[0].message.tool_calls:
         return {
-            "intent": "irrelevant",
-            "helper_for_action": None,
-            "confidence": 0.0
+            "tasks": [{
+                "intent": "irrelevant",
+                "helper_for_action": None,
+                "confidence": 0.0
+            }]
         }
     
     # Parse the tool call arguments
     tool_args = json.loads(response.choices[0].message.tool_calls[0].function.arguments)
     
-    # Extract and validate fields
-    intent = tool_args["intent"]
-    helper_for_action = tool_args.get("helper_for_action")
-    confidence = tool_args.get("confidence", default_confidence)
+    # Get tasks array, default to irrelevant if missing
+    tasks = tool_args.get("tasks", [{
+        "intent": "irrelevant",
+        "helper_for_action": None,
+        "confidence": default_confidence
+    }])
     
-    # Process SQL queries
-    if intent == "numeric" and helper_for_action:
-        helper_for_action = process_sql_query(helper_for_action)
+    # Process each task
+    for task in tasks:
+        # Set defaults if missing
+        task["confidence"] = task.get("confidence", default_confidence)
+        task["helper_for_action"] = task.get("helper_for_action")
+        
+        # Process SQL queries
+        if task["intent"] == "numeric" and task["helper_for_action"]:
+            task["helper_for_action"] = process_sql_query(task["helper_for_action"])
     
-    return {
-        "intent": intent,
-        "helper_for_action": helper_for_action,
-        "confidence": confidence
-    }
+    return {"tasks": tasks}
