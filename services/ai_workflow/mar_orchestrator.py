@@ -24,11 +24,14 @@ def handle_user_query(user_query: str) -> AnswerPacket:
     2. Process tasks one by one, with iterative refinement
     3. Aggregate results into final answer
     """
+    # Maximum try times
+    max_try_times = 10
+    
     # Track completed tasks and their results
     completed_tasks: List[Dict[str, Any]] = []
     completed_results: List[Dict[str, Any]] = []
     
-    while True:
+    while max_try_times > 0:
         # Get next set of tasks
         breakdown_results = break_down_query(
             user_query,
@@ -75,6 +78,8 @@ def handle_user_query(user_query: str) -> AnswerPacket:
         remaining_tasks = [t for t in breakdown_results if t.task_id != current_task.task_id]
         if not remaining_tasks:
             return aggregate_results(user_query, completed_tasks, completed_results)
+        
+        max_try_times -= 1
 
 def execute_task(plan: PlanningResult) -> Optional[Dict[str, Any]]:
     """

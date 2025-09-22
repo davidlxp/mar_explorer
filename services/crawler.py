@@ -1,6 +1,5 @@
 import requests
 from bs4 import BeautifulSoup
-import trafilatura
 import asyncio
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig
 from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
