@@ -5,7 +5,7 @@ High-level orchestrator for handling MAR queries with Snowflake + Pinecone (and 
 
 from typing import List, Dict, Any
 from services.agents.mar_helper import get_mar_table_schema, load_available_products, get_sql_examples
-from services.agents.tools.openai_tools import get_query_analysis_tools, get_system_prompt, call_openai
+from services.agents.tools.openai_tools import get_query_analysis_tools, get_system_prompt, call_openai, get_summarize_tools
 from services.agents.tools.query_processor import parse_openai_response
 from services.agents.tools.query_breakdown import break_down_query
 from services.agents.data_model import (
@@ -17,12 +17,59 @@ from services.constants import MAR_TABLE_PATH
 from services.db import get_database
 db = get_database()
 
-def plan_query_action(user_query: str) -> PlanningResult:
+def summarize_parent_plans(task: BreakdownQueryResult, parent_plans: Dict[int, PlanningResult]) -> str:
     """
-    Analyze user query to determine intent and generate appropriate helper (SQL/vector query).
+    Generate a summary of parent tasks' plans to provide context for planning the current task.
     
     Args:
-        user_query: The user's natural language query
+        task: Current task being planned
+        parent_plans: Dictionary of all previously planned tasks
+        
+    Returns:
+        A summary string describing what parent tasks plan to do
+    """
+    if not task.dependency_on or not parent_plans:
+        return ""
+        
+    # Get all ancestors (parents and their parents)
+    ancestors = set()
+    to_process = task.dependency_on.copy()
+    while to_process:
+        parent_id = to_process.pop()
+        if parent_id in ancestors:
+            continue
+        ancestors.add(parent_id)
+        parent = parent_plans.get(parent_id)
+        if parent and parent.dependency_on:
+            to_process.update(parent.dependency_on)
+    
+    # Build context from ancestors
+    ancestor_plans = []
+    for ancestor_id in sorted(ancestors):
+        plan = parent_plans[ancestor_id]
+        ancestor_plans.append(f"Task {ancestor_id}: {plan.todo_intent} - {plan.helper_for_action}")
+    
+    # Get summary from AI
+    system_prompt = """You are an expert at summarizing task plans.
+    Your job is to create a concise summary of what parent tasks plan to do,
+    focusing on how their actions and results might influence the current task."""
+    
+    response = call_openai(
+        system_prompt,
+        "Summarize these parent task plans:\n" + "\n".join(ancestor_plans),
+        get_summarize_tools()
+    )
+    
+    result = parse_openai_response(response)
+    return result.get("summary", "No summary available")
+
+def plan_query_action(task: BreakdownQueryResult, parent_plans: Dict[int, PlanningResult] = None) -> PlanningResult:
+    """
+    Analyze task to determine intent and generate appropriate helper (SQL/vector query).
+    
+    Args:
+        task: The task to plan
+        parent_plans: Dictionary of previously planned tasks, used for context
         
     Returns:
         AnalysisResult containing:
@@ -35,18 +82,24 @@ def plan_query_action(user_query: str) -> PlanningResult:
         products = load_available_products()
         sql_examples = get_sql_examples()
         
+        # Get parent plan summary if available
+        parent_summary = summarize_parent_plans(task, parent_plans) if parent_plans else ""
+        parent_context = f"\nParent Task Context:\n{parent_summary}" if parent_summary else ""
+        
         # Get tools and prompt
         tools = get_query_analysis_tools()
-        system_prompt = get_system_prompt(schema, products, sql_examples)
+        system_prompt = get_system_prompt(schema, products, sql_examples) + parent_context
         
         # Call OpenAI
-        response = call_openai(system_prompt, user_query, tools)
+        response = call_openai(system_prompt, task.task_to_do, tools)
         
         # Parse and validate response
         result = parse_openai_response(response)
         
         return PlanningResult(
-            task_to_do=user_query,  # Pass through the original query
+            task_id=task.task_id,
+            dependency_on=task.dependency_on,
+            task_to_do=task.task_to_do,
             todo_intent=TodoIntent(result["todo_intent"]),
             helper_for_action=result["helper_for_action"],
             confidence=result["confidence"],
@@ -56,7 +109,9 @@ def plan_query_action(user_query: str) -> PlanningResult:
     except Exception as e:
         print(f"Error analyzing query: {e}")
         return PlanningResult(
-            task_to_do=user_query,  # Pass through the original query
+            task_id=task.task_id,
+            dependency_on=task.dependency_on,
+            task_to_do=task.task_to_do,
             todo_intent=TodoIntent.CONTEXT,
             helper_for_action=None,
             confidence=0.0,  # Low confidence due to error
@@ -145,8 +200,8 @@ def plan_all_tasks(breakdown_results: List[BreakdownQueryResult]) -> Dict[int, P
             if task.dependency_on:
                 print(f"Using results from Task {task.dependency_on}")
             
-            # Execute the task
-            res = plan_query_action(task.task_to_do)
+            # Execute the task with parent plans
+            res = plan_query_action(task, all_planned_results)
             print("\Planned Task:")
             print("---------------")
             print(f"task_to_do: {res.task_to_do}")

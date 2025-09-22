@@ -120,6 +120,30 @@ def get_system_prompt(schema: Any, products: Dict[str, Any], sql_examples: str) 
     IMPORTANT: Only use asset_class, product_type, and product values from the above catalog.
     If a filter value is not in the catalog, do not include that parameter."""
 
+def get_summarize_tools() -> List[Dict[str, Any]]:
+    """
+    Get the function schema for summarizing parent task plans.
+    """
+    return [
+        {
+            "type": "function",
+            "function": {
+                "name": "summarize_plans",
+                "description": "Create a concise summary of parent task plans",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "summary": {
+                            "type": "string",
+                            "description": "A concise summary of what parent tasks plan to do and how it might influence the current task"
+                        }
+                    },
+                    "required": ["summary"]
+                }
+            }
+        }
+    ]
+
 def call_openai(system_prompt: str, user_query: str, tools: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Make an OpenAI API call with function calling.
