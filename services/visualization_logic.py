@@ -474,8 +474,8 @@ class VolumeVisualizer:
         if value is None:
             if filter_type == 'asset_class':
                 manager.deselect_all_asset_classes()
-            elif filter_type == 'product':
-                manager.deselect_all_products()
+            elif filter_type == 'product_type':
+                manager.deselect_all_product_types()
             return
         
         # Handle single item removal
