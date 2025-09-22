@@ -18,13 +18,73 @@ ORDER BY asset_class, product, product_type, year, month;
 """
 
 TREND_QUERY = """
+WITH monthly_data AS (
+    -- Get all volumes regardless of filter to calculate MoM and YoY
+    SELECT 
+        year_month,
+        year,
+        month,
+        SUM(volume) as total_volume,
+        SUM(avg_volume) as total_adv
+    FROM mar_combined_m
+    GROUP BY year_month, year, month
+),
+filtered_data AS (
+    -- Get filtered volumes for display
+    SELECT 
+        year_month,
+        year,
+        month,
+        SUM(volume) as total_volume,
+        SUM(avg_volume) as total_adv
+    FROM mar_combined_m
+    WHERE {where_clause}
+    GROUP BY year_month, year, month
+),
+mom_yoy_calc AS (
+    SELECT 
+        f.year_month,
+        f.total_volume,
+        f.total_adv,
+        -- Calculate Volume MoM change
+        CASE 
+            WHEN prev_month.total_volume IS NULL THEN NULL
+            ELSE ((f.total_volume - prev_month.total_volume) / prev_month.total_volume) * 100
+        END as volume_mom_change,
+        -- Calculate Volume YoY change
+        CASE 
+            WHEN prev_year.total_volume IS NULL THEN NULL
+            ELSE ((f.total_volume - prev_year.total_volume) / prev_year.total_volume) * 100
+        END as volume_yoy_change,
+        -- Calculate ADV MoM change
+        CASE 
+            WHEN prev_month.total_adv IS NULL THEN NULL
+            ELSE ((f.total_adv - prev_month.total_adv) / prev_month.total_adv) * 100
+        END as adv_mom_change,
+        -- Calculate ADV YoY change
+        CASE 
+            WHEN prev_year.total_adv IS NULL THEN NULL
+            ELSE ((f.total_adv - prev_year.total_adv) / prev_year.total_adv) * 100
+        END as adv_yoy_change
+    FROM filtered_data f
+    -- Join with previous month data
+    LEFT JOIN monthly_data prev_month ON 
+        (f.year = prev_month.year AND f.month = prev_month.month + 1)
+        OR (f.year = prev_month.year + 1 AND f.month = 1 AND prev_month.month = 12)
+    -- Join with previous year data
+    LEFT JOIN monthly_data prev_year ON 
+        f.year = prev_year.year + 1 
+        AND f.month = prev_year.month
+)
 SELECT 
     year_month,
-    SUM(volume) as total_volume,
-    SUM(avg_volume) as total_avg_volume
-FROM mar_combined_m
-WHERE {where_clause}
-GROUP BY year_month
+    total_volume,
+    total_adv,
+    volume_mom_change,
+    volume_yoy_change,
+    adv_mom_change,
+    adv_yoy_change
+FROM mom_yoy_calc
 ORDER BY year_month;
 """
 
@@ -329,7 +389,23 @@ class ChartBuilder:
                 x=trend_data['YEAR_MONTH'],
                 y=trend_data['TOTAL_VOLUME'],
                 name='Volume',
-                hovertemplate='Month: %{x}<br>Volume: %{y:,.0f}<extra></extra>'
+                hovertemplate=(
+                    'Month: %{x}<br><br>'
+                    'Volume: %{y:,.0f}<br>'
+                    'MoM Change: %{customdata[0]}<br>'
+                    'YoY Change: %{customdata[1]}<br><br>'
+                    'ADV: %{customdata[2]:,.0f}<br>'
+                    'MoM Change: %{customdata[3]}<br>'
+                    'YoY Change: %{customdata[4]}'
+                    '<extra></extra>'
+                ),
+                customdata=list(zip(
+                    [f"{x:.1f}%" if pd.notnull(x) else "NA" for x in trend_data['VOLUME_MOM_CHANGE']],
+                    [f"{x:.1f}%" if pd.notnull(x) else "NA" for x in trend_data['VOLUME_YOY_CHANGE']],
+                    trend_data['TOTAL_ADV'],
+                    [f"{x:.1f}%" if pd.notnull(x) else "NA" for x in trend_data['ADV_MOM_CHANGE']],
+                    [f"{x:.1f}%" if pd.notnull(x) else "NA" for x in trend_data['ADV_YOY_CHANGE']]
+                ))
             ),
             row=1, col=1
         )
@@ -337,10 +413,10 @@ class ChartBuilder:
         fig.add_trace(
             go.Scatter(
                 x=trend_data['YEAR_MONTH'],
-                y=trend_data['TOTAL_AVG_VOLUME'],
-                name='Average Volume',
+                y=trend_data['TOTAL_ADV'],
+                name='ADV',
                 line=dict(color='red'),
-                hovertemplate='Month: %{x}<br>Avg Volume: %{y:,.0f}<extra></extra>'
+                hovertemplate='<extra></extra>'  # Hide duplicate hover info
             ),
             row=1, col=1
         )
