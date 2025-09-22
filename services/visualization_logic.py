@@ -55,7 +55,11 @@ class FilterState:
     selected_products: Set[str] = field(default_factory=set)
     selected_product_types: Set[str] = field(default_factory=set)
     
-    # Time filters (independent)
+    # Time filters reference sets (never change after initialization)
+    available_years: Set[int] = field(default_factory=set)
+    available_months: Set[int] = field(default_factory=set)
+    
+    # Time filters selected sets
     selected_years: Set[int] = field(default_factory=set)
     selected_months: Set[int] = field(default_factory=set)
 
@@ -87,9 +91,13 @@ class FilterStateManager:
                 self.state.product_to_types[product] = set()
             self.state.product_to_types[product].add(product_type)
         
-        # Initialize time filters
-        self.state.selected_years = set(hierarchy_data['YEAR'])
-        self.state.selected_months = set(hierarchy_data['MONTH'])
+        # Initialize time filters with reference sets that never change
+        self.state.available_years = set(hierarchy_data['YEAR'])
+        self.state.available_months = set(hierarchy_data['MONTH'])
+        
+        # Initialize selected sets with all items
+        self.state.selected_years = self.state.available_years.copy()
+        self.state.selected_months = self.state.available_months.copy()
         
         # Initialize with all items selected
         self.select_all()
@@ -233,6 +241,8 @@ class DataFetcher:
                 'asset_classes': state.available_asset_classes,
                 'products': state.available_products,
                 'product_types': state.available_product_types,
+                'years': state.available_years,  # Include available years
+                'months': state.available_months,  # Include available months
             },
             'selected': {
                 'asset_classes': state.selected_asset_classes,

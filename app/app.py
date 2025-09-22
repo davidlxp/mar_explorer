@@ -171,7 +171,7 @@ with dashboard_container:
             # Year filter (independent)
             new_years = st.multiselect(
                 "Year",
-                options=sorted(list(filter_state['selected']['years'])),
+                options=sorted(list(filter_state['available']['years'])),  # Use available years
                 default=sorted(list(filter_state['selected']['years']))
             )
             # Update selected years
@@ -200,7 +200,7 @@ with dashboard_container:
             # Month filter (independent)
             new_months = st.multiselect(
                 "Month",
-                options=sorted(list(filter_state['selected']['months'])),
+                options=sorted(list(filter_state['available']['months'])),  # Use available months
                 default=sorted(list(filter_state['selected']['months']))
             )
             # Update selected months
