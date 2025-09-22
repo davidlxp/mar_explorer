@@ -63,14 +63,14 @@ def load_available_products():
 
     return products
 
-def submit_sql_query(query: str) -> str:
+def execute_sql_query(query: str) -> str:
     """
     Submit a SQL query to the database and return the result.
     """
     result = db.fetchall(query)
     return result
 
-def submit_vector_query(query: str) -> str:
+def execute_vector_query(query: str) -> str:
     """
     Submit a vector query to the database and return the result.
     """

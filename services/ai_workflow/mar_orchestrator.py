@@ -13,7 +13,7 @@ from services.ai_workflow.data_model import (
 )
 from services.ai_workflow.utils.common_utils import (
     execute_sql_query,
-    execute_vector_search
+    execute_vector_query
 )
 from services.constants import MAR_TABLE_PATH
 
@@ -95,7 +95,7 @@ def execute_task(plan: PlanningResult) -> Optional[Dict[str, Any]]:
         elif plan.todo_intent == TodoIntent.CONTEXT:
             if not plan.helper_for_action:
                 return None
-            return execute_vector_search(plan.helper_for_action)
+            return execute_vector_query(plan.helper_for_action)
             
         elif plan.todo_intent == TodoIntent.AGGREGATION:
             # Aggregation tasks are handled by the aggregator agent
