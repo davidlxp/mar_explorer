@@ -4,8 +4,8 @@
 
 MAR_VOLUME_SCHEMA = {
     "asset_class": "string",
-    "product": "string",
     "product_type": "string",
+    "product": "string",
     "year_month": "string",
     "year": "int32",
     "month": "int32",
@@ -15,8 +15,8 @@ MAR_VOLUME_SCHEMA = {
 
 MAR_TRADE_DAYS_SCHEMA = {
     "asset_class": "string",
-    "product": "string",
     "product_type": "string",
+    "product": "string",
     "year_month": "string",
     "year": "int32",
     "month": "int32",
@@ -26,8 +26,8 @@ MAR_TRADE_DAYS_SCHEMA = {
 
 MAR_COMBINED_SCHEMA = {
     "asset_class": "string",
-    "product": "string",
     "product_type": "string",
+    "product": "string",
     "year_month": "string",
     "year": "int32",
     "month": "int32",

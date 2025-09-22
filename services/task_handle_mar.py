@@ -183,27 +183,28 @@ def parse_mar_to_file(file, sheet_name):
     # :::::: Data Cleaning :::::: #
 
     # Regularize column names and add name for the 3rd column
-    df.rename(columns={df.columns[2]: 'product_type'}, inplace=True)
+    df.rename(columns={df.columns[1]: 'product_type'}, inplace=True)
+    df.rename(columns={df.columns[2]: 'product'}, inplace=True)
     df.rename(columns={col: col.lower().replace(" ", "_") for col in df.columns}, inplace=True)
 
     # Regularize the format for each cell to prepare for filtering process
     df = df.map(lambda x: x.strip().lower() if isinstance(x, str) else x)
 
     # Forward fill asset_class and product hierarchies
-    ffill_cols = ['asset_class', 'product']
+    ffill_cols = ['asset_class', 'product_type']
     for col in ffill_cols:
         df[col] = df[col].ffill()
 
     # Remove rows where it's standing for Total or Grand Total
     mask = (
         (df['asset_class'].astype(str).isin(['total', 'grand total'])) |
-        (df['product'].astype(str).isin(['total', 'grand total'])) |
-        (df['product_type'].astype(str).isin(['total', 'grand total']))
+        (df['product_type'].astype(str).isin(['total', 'grand total'])) |
+        (df['product'].astype(str).isin(['total', 'grand total']))
     )
     df = df[~mask]
 
     # Melt months into rows
-    avoid_melt_cols = ['asset_class', 'product', 'product_type']
+    avoid_melt_cols = ['asset_class', 'product_type', 'product']
     df = df.melt(
         id_vars = avoid_melt_cols,
         var_name = 'month_year',
