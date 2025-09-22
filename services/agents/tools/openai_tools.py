@@ -26,8 +26,8 @@ def get_query_analysis_tools() -> List[Dict[str, Any]]:
                     "properties": {
                         "todo_intent": {
                             "type": "string",
-                            "enum": ["numeric", "context"],
-                            "description": "The type of action needed to resolve the query"
+                            "enum": ["numeric", "context", "aggregation"],
+                            "description": "The type of action needed to resolve the query. Use 'aggregation' when the task requires combining or processing results from other tasks."
                         },
                         "helper_for_action": {
                             "type": "string",
@@ -72,7 +72,7 @@ def get_system_prompt(schema: Any, products: Dict[str, Any], sql_examples: str) 
     Task types:
     - 'numeric' → It means to answer user's query, you need to need to generate a SQL query to execute against the Snowflake database.
     - 'context' → It means to answer user's query, you need to need to generate a natural language query to search financial press releases related content.
-    - 'irrelevant' → It means the query is outside the scope of the MAR data.
+    - 'aggregation' → It means this task will combine, aggregate, or transform results from other tasks. No helper_for_action needed.
     
     IMPORTANT: Task Breakdown Rules
     1. If a query contains multiple questions or comparisons, create separate tasks for each one.
@@ -86,6 +86,13 @@ def get_system_prompt(schema: Any, products: Dict[str, Any], sql_examples: str) 
        → Create two tasks:
          - numeric task for ADV data
          - context task for trend explanation
+         
+    3. Use aggregation intent for combining or processing tasks.
+       Example: "What's the percentage difference in ADV between US and EU products?"
+       → Create three tasks:
+         - numeric task: Get US ADV data
+         - numeric task: Get EU ADV data
+         - aggregation task: Calculate percentage difference (depends on previous tasks)
     
     For numeric tasks:
     1. You need to generate a SQL query and populate the helper_for_action field of functional call.
@@ -98,6 +105,11 @@ def get_system_prompt(schema: Any, products: Dict[str, Any], sql_examples: str) 
     1. You need to understand the intention of the user's query and generate a natural language query and populate the helper_for_action field of functional call.
     2. It will be used to search the financial press releases related content in Vector Database.
 
+    For aggregation tasks:
+    1. Set helper_for_action to null (aggregations are done after getting parent task results)
+    2. Make sure to set appropriate dependencies on tasks that provide the data
+    3. Set confidence based on how certain you are about the aggregation approach
+    
     For irrelevant queries:
     1. Return null as helper_for_action
     2. Set confidence to 1.0.

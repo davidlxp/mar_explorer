@@ -66,12 +66,17 @@ def get_breakdown_prompt() -> str:
     Your job is to analyze user queries and determine what tasks need to be done to answer them.
 
     CRITICAL: Task Optimization Rules
-    1. Avoid Unnecessary Breakdown:
-       - If a single SQL query can efficiently get all needed data, DO NOT break it down
-       - All SQL queries run against the same table, so joins are not needed
+    1. Smart Task Breakdown:
+       - Break down tasks when they involve different types of operations (SQL vs aggregation vs context)
+       - Break down when later tasks need to process results from earlier tasks
+       Example: "Compare YoY ADV for cash products"
+       → GOOD: Break into two tasks:
+         1. SQL task: Get ADV data for both years
+         2. Aggregation task: Calculate and format YoY comparison
+       
        Example: "Get ADV for cash and credit products"
-       → BAD:  Two separate tasks for cash and credit
-       → GOOD: One task with a single SQL query using IN clause for asset_class
+       → BAD: Two separate SQL tasks
+       → GOOD: One SQL task with IN clause for asset_class
     
     2. Valid Reasons for Task Breakdown:
        a) Different Query Types:
@@ -102,8 +107,28 @@ def get_breakdown_prompt() -> str:
        - reason: MUST explain why this can't be combined with other tasks
        - dependency_on: Array of parent task_ids ([] if none)
        
-    Example Good Breakdown:
-    Query: "What's our market share in credit products and why did it change?"
+    Example Good Breakdowns:
+    
+    Query 1: "Compare YoY ADV for cash products in August 2024 vs 2025"
+    Tasks:
+    {
+      "tasks": [
+        {
+          "task_id": 1,
+          "task": "Get ADV data for cash products for August 2024 and 2025",
+          "reason": "Need raw ADV data for both years for comparison",
+          "dependency_on": []
+        },
+        {
+          "task_id": 2,
+          "task": "Calculate and format YoY comparison",
+          "reason": "Need to process the raw data to show meaningful YoY changes",
+          "dependency_on": [1]
+        }
+      ]
+    }
+    
+    Query 2: "What's our market share in credit products and why did it change?"
     Tasks:
     {
       "tasks": [
@@ -155,7 +180,12 @@ def break_down_query(query: str) -> List[BreakdownQueryResult]:
         
         # Parse response
         if not response.choices[0].message.tool_calls:
-            return [BreakdownQueryResult(task_to_do="Can't figure out how to break down the query.", reason="Just can't figure it out.")]
+            return [BreakdownQueryResult(
+                task_id=1,
+                task_to_do="Can't figure out how to break down the query.",
+                reason="Just can't figure it out.",
+                dependency_on=None
+            )]
             
         # Extract tasks
         result = response.choices[0].message.tool_calls[0].function.arguments

@@ -10,7 +10,7 @@ from typing import List, Dict, Any, Optional
 class TodoIntent(str, Enum):
     NUMERIC = "numeric"
     CONTEXT = "context"
-    CALCULATION = "calculation"
+    AGGREGATION = "aggregation"
 
 @dataclass
 class BreakdownQueryResult:
