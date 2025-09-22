@@ -46,15 +46,21 @@ def plan_query_action(user_query: str) -> PlanningResult:
         result = parse_openai_response(response)
         
         return PlanningResult(
+            task_to_do=user_query,  # Pass through the original query
             todo_intent=TodoIntent(result["todo_intent"]),
-            helper_for_action=result["helper_for_action"]
+            helper_for_action=result["helper_for_action"],
+            confidence=result["confidence"],
+            confidence_reason=result["confidence_reason"]
         )
         
     except Exception as e:
         print(f"Error analyzing query: {e}")
         return PlanningResult(
+            task_to_do=user_query,  # Pass through the original query
             todo_intent=TodoIntent.CONTEXT,
-            helper_for_action=None
+            helper_for_action=None,
+            confidence=0.0,  # Low confidence due to error
+            confidence_reason=f"Error occurred during analysis: {str(e)}"
         )
 
 def handle_user_query(user_query: str) -> str:
@@ -85,8 +91,11 @@ def handle_user_query(user_query: str) -> AnswerPacket:
         res = plan_query_action(task_to_do)
         print("\nTask Analysis:")
         print("---------------")
+        print(f"task_to_do: {res.task_to_do}")
         print(f"todo_intent: {res.todo_intent}")
         print(f"helper_for_action: {res.helper_for_action}")
+        print(f"confidence: {res.confidence}")
+        print(f"confidence_reason: {res.confidence_reason}")
         print("\n---------------")
     
     # # Execute tasks and compose answer

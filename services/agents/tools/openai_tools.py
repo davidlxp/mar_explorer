@@ -32,9 +32,19 @@ def get_query_analysis_tools() -> List[Dict[str, Any]]:
                         "helper_for_action": {
                             "type": "string",
                             "description": "SQL query for numeric intent, search query for context intent"
+                        },
+                        "confidence": {
+                            "type": "number",
+                            "description": "Confidence score between 0 and 1 indicating how confident the model is about the intent and helper action are related to this query",
+                            "minimum": 0,
+                            "maximum": 1
+                        },
+                        "confidence_reason": {
+                            "type": "string",
+                            "description": "Explanation of why the model assigned this confidence score"
                         }
                     },
-                    "required": ["todo_intent", "helper_for_action"]
+                    "required": ["todo_intent", "helper_for_action", "confidence", "confidence_reason"]
                 }
             }
         }

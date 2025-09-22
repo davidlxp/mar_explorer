@@ -24,6 +24,7 @@ class PlanningResult:
     todo_intent: TodoIntent
     helper_for_action: Optional[str]  # SQL query or vector search query or None
     confidence: float
+    confidence_reason: str
 
 @dataclass
 class SqlResult:
