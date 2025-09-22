@@ -49,6 +49,9 @@ def render_sidebar():
                 st.info("⏳ Processing MAR update...")
                 try:
                     task_handle_mar.update_mar_with_latest_file()
+                    # Reset visualizer to force reinitialization
+                    if 'visualizer' in st.session_state:
+                        st.session_state.visualizer.reinitialize()
                     st.success("✅ MAR update completed!")
                 except Exception as e:
                     st.error("❌ Error during update")

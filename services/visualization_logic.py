@@ -493,6 +493,10 @@ class VolumeVisualizer:
         if months is not None:
             self.data_fetcher.filter_manager.state.selected_months = months
 
+    def reinitialize(self):
+        """Reinitialize the data fetcher to refresh data from database"""
+        self.data_fetcher = DataFetcher()
+        
     def get_dashboard_data(self) -> Dict[str, Any]:
         """Get dashboard data and create visualization"""
         data = self.data_fetcher.get_dashboard_data()

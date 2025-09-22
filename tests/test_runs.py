@@ -52,6 +52,10 @@ def test_run_mar_update():
     the_file = "storage/raw_files/mar_files/tradeweb-mar-2025_08.xlsx"
     task_mar.handle_mar_update(the_file)
 
+def test_run_mar_update_with_latest_file():
+    logger.info("Running test_run_mar_update_with_latest_file")
+    task_mar.update_mar_with_latest_file()
+
 def test_run_query1():
     logger.info("Running test_run_query1")
     test_query2 = """

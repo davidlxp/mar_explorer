@@ -21,8 +21,8 @@ class Dashboard:
         if not st.session_state.visualizer:
             st.session_state.visualizer = VolumeVisualizer()
         
-        if not st.session_state.filter_state:
-            st.session_state.filter_state = st.session_state.visualizer.get_filter_state()
+        # Always get fresh filter state to ensure we have latest data
+        st.session_state.filter_state = st.session_state.visualizer.get_filter_state()
     
     def render_dashboard(self) -> None:
         """Render the dashboard interface"""
