@@ -3,169 +3,125 @@ mar_orchestrator.py
 High-level orchestrator for handling MAR queries with Snowflake + Pinecone (and optional Web search).
 """
 
+import json
 from typing import List, Dict, Any, Optional, Union
 from dataclasses import dataclass
 from enum import Enum
-from simpleeval import simple_eval
 from openai import OpenAI
-from services.agents.mar_prompts import SQL_HELPER_CATALOG_STR
+from services.constants import MAR_ORCHESTRATOR_MODEL, MAR_TABLE_PATH, MAR_TABLE_PATH
+from services.agents.mar_helper import get_mar_table_schema, load_available_products, get_sql_examples
 
-from services.constants import MAR_ORCHESTRATOR_MODEL, MAR_DATABASE_NAME
-
-mar_database_name = MAR_DATABASE_NAME
-
+# Initialize OpenAI client
 client = OpenAI()
 model = MAR_ORCHESTRATOR_MODEL
-
-# ================================================================
-# ENUMS, DATA MODELS
-# ================================================================
 
 class Intent(str, Enum):
     NUMERIC = "numeric"
     CONTEXT = "context"
     IRRELEVANT = "irrelevant"
 
-
 @dataclass
-class DateSpec:
-    year: int
-    month: int = -1      # -1 = no month
-    quarter: int = -1    # -1 = no quarter
-
-
-@dataclass
-class Task:
-    """A decomposed unit of work (SQL, Pinecone, Web)."""
+class AnalysisResult:
+    """Result of query analysis containing intent and action helper."""
     intent: Intent
-    helper: str                # SQL helper name or strategy (semantic, filter)
-    params: Dict[str, Any]     # product, year, month, etc.
-
-
-@dataclass
-class SqlResult:
-    rows: List[Dict[str, Any]]
-    cols: List[str]
-    source: str = "snowflake"
-
-
-@dataclass
-class ContextChunk:
-    id: str
-    text: str
-    meta: Dict[str, Any]
-    score: float
-
-
-@dataclass
-class RetrievalResult:
-    chunks: List[ContextChunk]
-    confidence: float
-    strategy: str
-
-
-@dataclass
-class AnswerPacket:
-    text: str
-    citations: List[Dict[str, Any]]
-    confidence: float
-
+    helper_for_action: Optional[str]  # SQL query or vector search query or None
+    confidence: float = 0.0
 
 # ================================================================
-# ORCHESTRATOR ENTRYPOINT
+# ANALYSIS + DECOMPOSITION
 # ================================================================
 
-def handle_user_query(user_query: str) -> AnswerPacket:
+def analyze_and_decompose(user_query: str) -> AnalysisResult:
     """
-    High-level entrypoint:
-    1. Analyze & decompose query → tasks
-    2. Execute tasks (SQL, Pinecone, Web)
-    3. Validate results
-    4. Compose final answer
+    Analyze user query to determine intent and generate appropriate helper (SQL/vector query).
+    
+    Args:
+        user_query: The user's natural language query
+        
+    Returns:
+        AnalysisResult containing:
+        - intent: The type of query (numeric/context/irrelevant)
+        - helper_for_action: SQL query for numeric intent, search query for context intent, None for irrelevant
+        - confidence: Model's confidence in the analysis
     """
-    tasks = analyze_and_decompose(user_query)
+    # Load schema and available products
+    schema = get_mar_table_schema()
+    products = load_available_products()
+    
+    # Format available products for the prompt
+    asset_classes_str = ", ".join(products["asset_classes"])
+    product_types_str = ", ".join(products["product_types"])
+    products_by_type_str = json.dumps(products["products_by_type"], indent=2)
 
-    results = []
-    for task in tasks:
-        if task.intent == Intent.NUMERIC:
-            results.append(run_numeric_task(task))
-        elif task.intent == Intent.CONTEXT:
-            results.append(run_context_task(task))
-        elif task.intent == Intent.WEB:
-            results.append(run_web_task(task))  # Future extension
-        else:
-            return AnswerPacket(
-                text="Sorry, I can only help with MAR numeric or context queries.",
-                citations=[],
-                confidence=0.99,
-            )
-
-    return compose_final_answer(user_query, tasks, results)
-
-
-# ================================================================
-# 1. ANALYSIS + DECOMPOSITION
-# ================================================================
-
-def analyze_and_decompose(user_query: str) -> List[Task]:
-    """
-    Use LLM function calling to parse query into structured tasks.
-    """
-
-    # 1. Define the schema for tasks
+    # Define the function schema for OpenAI
     tools = [
         {
             "type": "function",
             "function": {
-                "name": "decompose_query",
-                "description": "Decompose user query into multiple tasks as needed.for pulling financial MAR data use SQL, or getting context about the financial movement from Pinecone.",
+                "name": "analyze_query",
+                "description": "Analyze user query and generate appropriate SQL or search query",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "tasks": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "intent": {
-                                        "type": "string",
-                                        "enum": ["numeric", "context", "irrelevant"]
-                                    },
-                                    "helper": {
-                                        "type": "string",
-                                        "description": "SQL helper name (for numeric), or 'semantic' (for context)."
-                                    },
-                                    "params": {
-                                        "type": "object",
-                                        "description": "Parameters like asset_class, product, product_type, year, month, quarter as needed."
-                                    }
-                                },
-                                "required": ["intent", "helper", "params"]
-                            }
+                        "intent": {
+                            "type": "string",
+                            "enum": ["numeric", "context", "irrelevant"],
+                            "description": "The type of query being made"
+                        },
+                        "helper_for_action": {
+                            "type": "string",
+                            "description": "SQL query for numeric intent, search query for context intent, null for irrelevant"
+                        },
+                        "confidence": {
+                            "type": "number",
+                            "description": "Confidence score between 0 and 1"
                         }
                     },
-                    "required": ["tasks"]
-                },
-            },
+                    "required": ["intent", "confidence"]
+                }
+            }
         }
     ]
 
     # 2. Call the LLM with function schema
+    system_prompt = f"""You are an analyst expert for financial MAR data.
+    When receiving a query from user, break it down into structured tasks as needed.
+    
+    Task types:
+    - 'numeric' → It means to answer user's query, you need to need to generate a SQL query to execute against the Snowflake database.
+    - 'context' → It means to answer user's query, you need to need to generate a natural language query to search financial press releases related content.
+    - 'irrelevant' → It means the query is outside the scope of the MAR data.
+    
+    For numeric tasks:
+    1. You need to generate a SQL query and populate the helper_for_action field of functional call.
+    2. It must be a query that can be executed against the Snowflake database.
+    3. It must be a query that can be executed against the {MAR_TABLE_PATH} table. See the schema below.
+    4. When you need to filter by asset_class, product_type, or product, you need to use the values from the available products catalog below.
+    5. All content in SQL if it's a string are in lowercase.
+
+    For context tasks:
+    1. You need to understand the intention of the user's query and generate a natural language query and populate the helper_for_action field of functional call.
+    2. It will be used to search the financial press releases related content in Vector Database.
+
+    Available Products Catalog:
+    - Asset Classes: {asset_classes_str}
+    - Product Types: {product_types_str}
+    - Products by Category:
+    {products_by_type_str}
+
+    {MAR_TABLE_PATH} Schema:
+    {schema}
+    
+    IMPORTANT: Only use asset_class, product_type, and product values from the above catalog.
+    If a filter value is not in the catalog, do not include that parameter.
+"""
+
     response = client.chat.completions.create(
         model=model,
         messages=[
             {
                 "role": "system",
-                "content": (
-                    "You are an analyst expert for financial MAR data.\n"
-                    "When receiving query from user, break down user queries into structured tasks as needed.\n"
-                    "- 'numeric' → SQL helper queries (pick best helper name)\n"
-                    "- 'context' → Pinecone queries ('semantic')\n"
-                    "- 'irrelevant' → outside scope\n"
-                    "Each task must include 'params': product, year, month, quarter where relevant.\n"
-                    "Multiple tasks if multiple comparisons or products are mentioned."
-                    + SQL_HELPER_CATALOG_STR
-                ),
+                "content": system_prompt,
             },
             {"role": "user", "content": user_query},
         ],
@@ -173,72 +129,76 @@ def analyze_and_decompose(user_query: str) -> List[Task]:
         tool_choice="auto",
     )
 
-    # 3. Parse the tool call
+    # Parse response
     message = response.choices[0].message
     if not message.tool_calls:
-        return [Task(intent=Intent.IRRELEVANT, helper="none", params={})]
+        return AnalysisResult(
+            intent=Intent.IRRELEVANT,
+            helper_for_action=None,
+            confidence=0.0
+        )
 
-    tool_args = message.tool_calls[0].function.arguments
     try:
-        import json
-        data = json.loads(tool_args)
+        # Extract the analysis
+        tool_args = json.loads(message.tool_calls[0].function.arguments)
         
-        # 4. Convert to Task dataclasses
-        tasks = []
-        for t in data.get("tasks", []):
-            # Validate required fields
-            if not all(key in t for key in ["intent", "helper", "params"]):
-                print(f"Warning: Malformed task data: {t}")
-                continue
-                
-            intent = Intent(t["intent"])
-            helper = t["helper"]
-            params = t["params"]
+        intent = Intent(tool_args["intent"])
+        helper_for_action = tool_args.get("helper_for_action")
+        confidence = tool_args.get("confidence", 0.0)
+
+        # Additional validation for numeric queries
+        if intent == Intent.NUMERIC and helper_for_action:
+            # Ensure table name is correct
+            if MAR_TABLE_PATH not in helper_for_action and "mar_combined_m" in helper_for_action:
+                helper_for_action = helper_for_action.replace("mar_combined_m", MAR_TABLE_PATH)
             
-            tasks.append(Task(intent=intent, helper=helper, params=params))
-            
-        if not tasks:
-            return [Task(intent=Intent.IRRELEVANT, helper="none", params={})]
-            
-        return tasks
+            # Validate string quotes
+            if '"' in helper_for_action:  # Snowflake prefers single quotes
+                helper_for_action = helper_for_action.replace('"', "'")
+        
+        return AnalysisResult(
+            intent=intent,
+            helper_for_action=helper_for_action,
+            confidence=confidence
+        )
+        
     except json.JSONDecodeError as e:
         print(f"Error parsing OpenAI response: {e}")
-        return [Task(intent=Intent.IRRELEVANT, helper="none", params={})]
+        return AnalysisResult(
+            intent=Intent.IRRELEVANT,
+            helper_for_action=None,
+            confidence=0.0
+        )
     except Exception as e:
-        print(f"Unexpected error processing tasks: {e}")
-        return [Task(intent=Intent.IRRELEVANT, helper="none", params={})]
-
-    return tasks
+        print(f"Unexpected error processing response: {e}")
+        return AnalysisResult(
+            intent=Intent.IRRELEVANT,
+            helper_for_action=None,
+            confidence=0.0
+        )
 
 
 # ================================================================
 # 2. EXECUTION FUNCTIONS
 # ================================================================
 
-def run_numeric_task(task: Task) -> SqlResult:
-    """
-    Map helper name to SQL query, execute against Snowflake.
-    Retry up to 3x if query fails.
-    """
-    # TODO: implement using Snowflake connector
-    return SqlResult(rows=[], cols=[])
+# def run_numeric_task(task: Task) -> SqlResult:
+#     """
+#     Map helper name to SQL query, execute against Snowflake.
+#     Retry up to 3x if query fails.
+#     """
+#     # TODO: implement using Snowflake connector
+#     return SqlResult(rows=[], cols=[])
 
 
-def run_context_task(task: Task) -> RetrievalResult:
-    """
-    Run Pinecone retrieval.
-    Currently semantic-only, but keep structure flexible for filter-first.
-    """
-    # TODO: implement Pinecone query
-    return RetrievalResult(chunks=[], confidence=0.0, strategy="semantic")
+# def run_context_task(task: Task) -> RetrievalResult:
+#     """
+#     Run Pinecone retrieval.
+#     Currently semantic-only, but keep structure flexible for filter-first.
+#     """
+#     # TODO: implement Pinecone query
+#     return RetrievalResult(chunks=[], confidence=0.0, strategy="semantic")
 
-
-def run_web_task(task: Task) -> Dict[str, Any]:
-    """
-    Optional extension: query Google Search API / Gemini.
-    Not implemented yet.
-    """
-    return {}
 
 
 # ================================================================
@@ -250,516 +210,42 @@ def validate_numeric(rows: List[Dict[str, Any]]) -> bool:
     return bool(rows)
 
 
-def validate_relevance(chunks: List[ContextChunk]) -> float:
-    """
-    Score relevance of Pinecone results.
-    Can be a mini-LLM, or heuristic with embedding similarity.
-    """
-    return 0.8 if chunks else 0.0
+# def validate_relevance(chunks: List[ContextChunk]) -> float:
+#     """
+#     Score relevance of Pinecone results.
+#     Can be a mini-LLM, or heuristic with embedding similarity.
+#     """
+#     return 0.8 if chunks else 0.0
 
 
 # ================================================================
 # 4. ANSWER COMPOSITION
 # ================================================================
 
-def compose_final_answer(user_query: str, tasks: List[Task], results: List[Any]) -> AnswerPacket:
-    """
-    Main AI agent fuses multiple results (SQL + Pinecone + Web) into natural language.
-    """
-    # TODO: Implement with LLM call
-    return AnswerPacket(
-        text="This is a placeholder answer.",
-        citations=[],
-        confidence=0.7
-    )
+# def compose_final_answer(user_query: str, tasks: List[Task], results: List[Any]) -> AnswerPacket:
+#     """
+#     Main AI agent fuses multiple results (SQL + Pinecone + Web) into natural language.
+#     """
+#     # TODO: Implement with LLM call
+#     return AnswerPacket(
+#         text="This is a placeholder answer.",
+#         citations=[],
+#         confidence=0.7
+#     )
 
 
 # ================================================================
 # 5. UTILITY FUNCTIONS
 # ================================================================
 
-def calculate_expression(expression: str) -> float:
-  """
-  Safely evaluate arithmetic expressions like:
-    "2500000000 / 365"
-    "(2.5e12 - 2.4e12) / 2.4e12 * 100"
-  """
-  # Use Python's ast or sympy for safe eval, not eval()
-  return simple_eval(expression)
+# def calculate_expression(expression: str) -> float:
+#   """
+#   Safely evaluate arithmetic expressions like:
+#     "2500000000 / 365"
+#     "(2.5e12 - 2.4e12) / 2.4e12 * 100"
+#   """
+#   # Use Python's ast or sympy for safe eval, not eval()
+#   return simple_eval(expression)
 
 
-# ================================================================
-# 5. SQL HELPERS
-# ================================================================
 
-# :::::: Helper functions for SQL queries :::::: #
-
-def _build_where_clause(
-    year_start: Optional[int] = None,
-    year_end: Optional[int] = None,
-    month_start: Optional[int] = None,
-    month_end: Optional[int] = None,
-    asset_class: Optional[List[str]] = None,
-    product_type: Optional[List[str]] = None,
-    product: Optional[List[str]] = None,
-) -> str:
-    """
-    Build a dynamic WHERE clause with support for ranges and IN statements.
-    Handles both single values and multiple selections.
-    """
-    conditions = []
-    # Year filter
-    if year_start is not None and year_end is not None:
-        if year_start == year_end:
-            conditions.append(f"year = {year_start}")
-        else:
-            conditions.append(f"year BETWEEN {year_start} AND {year_end}")
-    elif year_start is not None:
-        conditions.append(f"year = {year_start}")
-
-    # Month filter
-    if month_start is not None and month_end is not None:
-        if month_start == month_end:
-            conditions.append(f"month = {month_start}")
-        else:
-            conditions.append(f"month BETWEEN {month_start} AND {month_end}")
-    elif month_start is not None:
-        conditions.append(f"month = {month_start}")
-
-    # Asset class filter
-    if asset_class:
-        if isinstance(asset_class, str):
-            values = f"'{asset_class}'"
-        else:
-            values = ", ".join([f"'{v}'" for v in asset_class])
-        conditions.append(f"asset_class IN ({values})")
-
-    # Product filter
-    if product:
-        if isinstance(product, str):
-            values = f"'{product}'"
-        else:
-            values = ", ".join([f"'{v}'" for v in product])
-        conditions.append(f"product IN ({values})")
-
-    # Product type filter
-    if product_type:
-        if isinstance(product_type, str):
-            values = f"'{product_type}'"
-        else:
-            values = ", ".join([f"'{v}'" for v in product_type])
-        conditions.append(f"product_type IN ({values})")
-
-    return " AND ".join(conditions) if conditions else "1=1"
-
-  
-def _top_entities_by_metric(
-    year: int,
-    month: Optional[int] = None,
-    entity: str = "product",   # "asset_class", "product_type", "product"
-    metric: str = "volume",    # "volume" or "adv"
-    top_n: int = 5,
-    asset_class: Optional[Union[str, List[str]]] = None,
-    product_type: Optional[Union[str, List[str]]] = None,
-    product: Optional[Union[str, List[str]]] = None,
-) -> str:
-    """
-    Generalized function to return SQL for top N entities (product, asset_class, product_type)
-    ranked by volume or ADV, with optional filters.
-    """
-    where_clause = _build_where_clause(
-        year_start=year, month_start=month,
-        asset_class=asset_class, product=product, product_type=product_type
-    )
-
-    agg_expr = "SUM(volume)" if metric == "volume" else "AVG(adv)"
-
-    return f"""
-    SELECT {entity}, {agg_expr} AS {metric}
-    FROM {mar_database_name}
-    WHERE {where_clause}
-    GROUP BY {entity}
-    ORDER BY {metric} DESC
-    LIMIT {top_n};
-    """
-
-# :::::: Point lookup :::::: #
-
-def get_total_volume(
-    year: int,
-    month: int,
-    asset_class: Optional[Union[str, List[str]]] = None,
-    product_type: Optional[Union[str, List[str]]] = None,
-    product: Optional[Union[str, List[str]]] = None,
-) -> str:
-    """
-      Returns SQL for total trading volume with optional filters.
-    """
-    where_clause = _build_where_clause(
-        year_start=year, month_start=month,
-        asset_class=asset_class, product_type=product_type, product=product
-    )
-    return f"""
-    SELECT SUM(volume) AS total_volume
-    FROM {mar_database_name}
-    WHERE {where_clause};
-    """
-
-def get_adv(
-    year: int,
-    month: int,
-    asset_class: Optional[Union[str, List[str]]] = None,
-    product_type: Optional[Union[str, List[str]]] = None,
-    product: Optional[Union[str, List[str]]] = None,
-) -> str:
-    """
-      Returns SQL for average daily volume (ADV) with optional filters.
-    """
-    where_clause = _build_where_clause(
-        year_start=year, month_start=month,
-        asset_class=asset_class, product_type=product_type, product=product
-    )
-    return f"""
-    SELECT AVG(adv) AS adv
-    FROM {mar_database_name}
-    WHERE {where_clause};
-    """
-
-def compare_yoy_volume(
-    year: int,
-    month: int,
-    asset_class: Optional[Union[str, List[str]]] = None,
-    product_type: Optional[Union[str, List[str]]] = None,
-    product: Optional[Union[str, List[str]]] = None,
-) -> str:
-    """
-    Returns SQL for year-over-year comparison of volume for given filters.
-    """
-    prev_year = year - 1
-    where_clause = _build_where_clause(
-        year_start=prev_year, year_end=year,
-        month_start=month, month_end=month,
-        asset_class=asset_class, product_type=product_type, product=product
-    )
-    return f"""
-    SELECT year, month, SUM(volume) AS total_volume
-    FROM {mar_database_name}
-    WHERE {where_clause}
-    GROUP BY year, month
-    ORDER BY year;
-    """
-  
-def compare_mom_volume(
-    year: int,
-    month: int,
-    asset_class: Optional[Union[str, List[str]]] = None,
-    product_type: Optional[Union[str, List[str]]] = None,
-    product: Optional[Union[str, List[str]]] = None,
-) -> str:
-    """
-    Returns SQL for month-over-month comparison of volume for given filters.
-    Example: compare Aug 2025 vs Jul 2025.
-    """
-    prev_year, prev_month = (year, month - 1) if month > 1 else (year - 1, 12)
-
-    where_clause = _build_where_clause(
-        year_start=prev_year, year_end=year,
-        month_start=prev_month, month_end=month,
-        asset_class=asset_class, product_type=product_type, product=product
-    )
-
-    return f"""
-    SELECT year, month, SUM(volume) AS total_volume
-    FROM {mar_database_name}
-    WHERE {where_clause}
-    GROUP BY year, month
-    ORDER BY year, month;
-    """
-
-# Asset class-level
-def top_asset_classes_by_volume(
-    year: int,
-    month: Optional[int] = None,
-    top_n: int = 5,
-    product: Optional[Union[str, List[str]]] = None,
-    product_type: Optional[Union[str, List[str]]] = None,
-) -> str:
-    """
-        Returns SQL for top N asset classes by trading volume.
-
-        Examples:
-          top_asset_classes_by_volume(year=2025, month=8, top_n=3)
-            → Top 3 asset classes by volume in Aug 2025.
-          
-          top_asset_classes_by_volume(year=2024, top_n=5, product_type="derivative")
-            → Top 5 asset classes by volume in 2024, restricted to derivative products.
-
-          top_asset_classes_by_volume(year=2025, month=6, product="swaps")
-            → Top asset classes by volume in Jun 2025, but only counting swaps.
-    """
-    return _top_entities_by_metric(
-        year=year, month=month, entity="asset_class", metric="volume",
-        top_n=top_n, product=product, product_type=product_type
-    )
-
-def top_asset_classes_by_adv(
-    year: int,
-    month: Optional[int] = None,
-    top_n: int = 5,
-    product: Optional[Union[str, List[str]]] = None,
-    product_type: Optional[Union[str, List[str]]] = None,
-) -> str:
-    """
-      Returns SQL for top N asset classes by ADV.
-      Similar to top_asset_classes_by_volume, but with avg(ADV) instead of sum(volume).
-
-      Examples:
-        top_asset_classes_by_adv(year=2025, top_n=5)
-          → Top 5 asset classes by ADV in 2025.
-    """
-    return _top_entities_by_metric(
-        year=year, month=month, entity="asset_class", metric="adv",
-        top_n=top_n, product=product, product_type=product_type
-    )
-
-# Product type-level
-def top_product_types_by_volume(
-    year: int,
-    month: Optional[int] = None,
-    top_n: int = 5,
-    asset_class: Optional[Union[str, List[str]]] = None,
-    product: Optional[Union[str, List[str]]] = None,
-) -> str:
-    """
-      Returns SQL for top N product types by trading volume.
-
-      Examples:
-        top_product_types_by_volume(year=2025, month=8, top_n=1)
-          → Top 1 product types (product type e.g., cash vs derivative) by volume in Aug 2025.
-        
-      It can filter on Asset Class and Product too.
-    """
-    return _top_entities_by_metric(
-        year=year, month=month, entity="product_type", metric="volume",
-        top_n=top_n, asset_class=asset_class, product=product
-    )
-
-def top_product_types_by_adv(
-    year: int,
-    month: Optional[int] = None,
-    top_n: int = 5,
-    asset_class: Optional[Union[str, List[str]]] = None,
-    product: Optional[Union[str, List[str]]] = None,
-) -> str:
-    """
-      Returns SQL for top N product types by ADV.
-      Similar to top_product_types_by_volume, but with avg(ADV) instead of sum(volume).
-
-      Examples:
-        top_product_types_by_adv(year=2025, top_n=3)
-          → Top 3 product types by ADV in 2025.
-    """
-    return _top_entities_by_metric(
-        year=year, month=month, entity="product_type", metric="adv",
-        top_n=top_n, asset_class=asset_class, product=product
-    )
-
-# Product-level
-def top_products_by_volume(
-    year: int,
-    month: int,
-    top_n: int = 5,
-    asset_class: Optional[Union[str, List[str]]] = None,
-    product_type: Optional[Union[str, List[str]]] = None,
-) -> str:
-    """
-      Returns SQL for top N products (leaf-level instruments, e.g. swaps, futures) by trading volume.
-
-      Examples:
-        top_products_by_volume(year=2025, month=8, top_n=5)
-          → Top 5 products (e.g. swaps, futures) by volume in Aug 2025.
-
-        top_products_by_volume(year=2024, month=12, top_n=3, asset_class="credit", product_type="derivative")
-          → Top 3 product by volume in Dec 2024, under credit asset class and derivative product type.
-    """
-    return _top_entities_by_metric(
-        year=year, month=month, entity="product", metric="volume",
-        top_n=top_n, asset_class=asset_class, product_type=product_type
-    )
-
-def top_products_by_adv(
-    year: int,
-    month: Optional[int] = None,
-    top_n: int = 5,
-    asset_class: Optional[Union[str, List[str]]] = None,
-    product_type: Optional[Union[str, List[str]]] = None,
-) -> str:
-    """
-      Returns SQL for top N products (leaf-level instruments) by ADV.
-      Similar to top_products_by_volume, but with avg(ADV) instead of sum(volume).
-
-      Examples:
-        top_products_by_adv(year=2025, month=8, top_n=5)
-          → Top 5 products (e.g. us government bonds, swaps) by ADV in Aug 2025.
-
-        top_products_by_adv(year=2024, top_n=10, asset_class="rates", product_type="cash")
-          → Top 10 cash products in Rates by ADV in 2024.
-    """
-    return _top_entities_by_metric(
-        year=year, month=month, entity="product", metric="adv",
-        top_n=top_n, asset_class=asset_class, product_type=product_type
-    )
-
-# :::::: Aggregates :::::: #
-
-def total_volume_by_entity(
-    year: int,
-    month: Optional[int] = None,
-    entity: str = "product_type",  # "product", "asset_class", "product_type"
-    product_type: Optional[Union[str, List[str]]] = None,
-    asset_class: Optional[Union[str, List[str]]] = None,
-    product: Optional[Union[str, List[str]]] = None,
-) -> str:
-    """
-    Returns SQL for total trading volume grouped by a given entity.
-    
-    Examples:
-      total_volume_by_entity(year=2025, entity="asset_class")
-        → Total volume by asset class in 2025.
-
-      total_volume_by_entity(year=2024, month=8, entity="product_type")
-        → Total volume by product type in Aug 2024.
-    """
-    where_clause = _build_where_clause(
-        year_start=year, month_start=month,
-        asset_class=asset_class, product=product, product_type=product_type
-    )
-
-    return f"""
-    SELECT {entity}, SUM(volume) AS total_volume
-    FROM {mar_database_name}
-    WHERE {where_clause}
-    GROUP BY {entity}
-    ORDER BY total_volume DESC;
-    """
-
-def trend_adv(
-    asset_class: Optional[Union[str, List[str]]] = None,
-    product_type: Optional[Union[str, List[str]]] = None,
-    product: Optional[Union[str, List[str]]] = None,
-    year_start: int = None,
-    year_end: int = None,
-) -> str:
-    """
-    Returns SQL for ADV trend for a given product/asset_class/product_type
-    across a year range.
-
-    Examples:
-      - trend_adv(asset_class="credit", year_start=2025, year_end=2025)
-        → ADV trend for credit in 2025.
-      - trend_adv(product_type="chinese bonds", year_start=2020, year_end=2025)
-        → ADV trend for Chinese Bonds from 2020 through 2025.
-    """
-    where_clause = _build_where_clause(
-        year_start=year_start, year_end=year_end,
-        asset_class=asset_class, product=product, product_type=product_type
-    )
-
-    return f"""
-    SELECT year, month, AVG(adv) AS adv
-    FROM {mar_database_name}
-    WHERE {where_clause}
-    GROUP BY year, month
-    ORDER BY year, month;
-    """
-
-def month_over_month_volume(
-    year: int,
-    asset_class: Optional[Union[str, List[str]]] = None,
-    product_type: Optional[Union[str, List[str]]] = None,
-    product: Optional[Union[str, List[str]]] = None,
-) -> str:
-    """
-    Returns SQL for monthly volume trend within a year.
-
-    Examples:
-      month_over_month_volume(year=2025, product_type="us etfs")
-        → Monthly volume trend for US ETFs in 2025.
-    """
-    where_clause = _build_where_clause(
-        year_start=year, year_end=year,
-        asset_class=asset_class, product=product, product_type=product_type
-    )
-
-    return f"""
-    SELECT year, month, SUM(volume) AS total_volume
-    FROM {mar_database_name}
-    WHERE {where_clause}
-    GROUP BY year, month
-    ORDER BY year, month;
-    """
-
-def ytd_volume(
-    year: int,
-    upto_month: int,
-    asset_class: Optional[Union[str, List[str]]] = None,
-    product_type: Optional[Union[str, List[str]]] = None,
-    product: Optional[Union[str, List[str]]] = None,
-) -> str:
-    """
-    Returns SQL for year-to-date volume up to a given month.
-
-    Examples:
-      ytd_volume(year=2025, upto_month=6, product="cash")
-        → YTD Cash volume Jan–Jun 2025.
-    """
-    where_clause = _build_where_clause(
-        year_start=year, month_start=1, month_end=upto_month,
-        asset_class=asset_class, product=product, product_type=product_type
-    )
-
-    return f"""
-    SELECT SUM(volume) AS ytd_volume
-    FROM {mar_database_name}
-    WHERE {where_clause};
-    """
-
-def pct_change_adv(
-    year1: int, month1: int,
-    year2: int, month2: int,
-    asset_class: Optional[Union[str, List[str]]] = None,
-    product_type: Optional[Union[str, List[str]]] = None,
-    product: Optional[Union[str, List[str]]] = None,
-) -> str:
-    """
-    Returns SQL for percent change in ADV between two periods.
-
-    Examples:
-      pct_change_adv(year1=2024, month1=8, year2=2025, month2=8, product="cash")
-        → % change in cash ADV from Aug 2024 → Aug 2025.
-
-      pct_change_adv(year1=2024, month1=12, year2=2025, month2=1, asset_class="rates")
-        → % change in Rates ADV from Dec 2024 → Jan 2025.
-    """
-    where_clause = _build_where_clause(
-        asset_class=asset_class, product=product, product_type=product_type
-    )
-
-    return f"""
-    WITH base AS (
-        SELECT year, month, AVG(adv) AS adv
-        FROM {mar_database_name}
-        WHERE {where_clause}
-          AND ((year = {year1} AND month = {month1})
-            OR (year = {year2} AND month = {month2}))
-        GROUP BY year, month
-    )
-    SELECT
-        MAX(CASE WHEN year = {year1} AND month = {month1} THEN adv END) AS adv1,
-        MAX(CASE WHEN year = {year2} AND month = {month2} THEN adv END) AS adv2,
-        (MAX(CASE WHEN year = {year2} AND month = {month2} THEN adv END) -
-         MAX(CASE WHEN year = {year1} AND month = {month1} THEN adv END)) 
-         / NULLIF(MAX(CASE WHEN year = {year1} AND month = {month1} THEN adv END), 0) * 100 
-         AS pct_change
-    FROM base;
-    """

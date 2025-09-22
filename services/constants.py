@@ -141,4 +141,4 @@ PR_M_CHUNK_OVERLAP_LINES = 0
 
 MAR_ORCHESTRATOR_MODEL = "gpt-4o"
 
-MAR_DATABASE_NAME = "mar_explorer.main.mar_combined_m"
+MAR_TABLE_PATH = "mar_explorer.main.mar_combined_m"

@@ -49,6 +49,7 @@ if __name__ == "__main__":
     # from services.nlq import run_cli
     # run_cli()
 
+    # print(mar_prompts.SQL_HELPER_CATALOG_STR)
 
 
     the_query = "What is the total trading volume of Tradeweb in August 2025?"
