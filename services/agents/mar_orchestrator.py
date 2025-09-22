@@ -7,10 +7,15 @@ from typing import List, Dict, Any, Optional, Union
 from dataclasses import dataclass
 from enum import Enum
 from simpleeval import simple_eval
+from openai import OpenAI
+from services.agents.mar_prompts import SQL_HELPER_CATALOG_STR
 
-from services.constants import MAR_ORCHESTRATOR_MODEL, MAR_SQL_DATABASE_NAME
+from services.constants import MAR_ORCHESTRATOR_MODEL, MAR_DATABASE_NAME
 
-mar_database_name = MAR_SQL_DATABASE_NAME
+mar_database_name = MAR_DATABASE_NAME
+
+client = OpenAI()
+model = MAR_ORCHESTRATOR_MODEL
 
 # ================================================================
 # ENUMS, DATA MODELS
@@ -19,7 +24,6 @@ mar_database_name = MAR_SQL_DATABASE_NAME
 class Intent(str, Enum):
     NUMERIC = "numeric"
     CONTEXT = "context"
-    WEB = "web"
     IRRELEVANT = "irrelevant"
 
 
@@ -105,13 +109,88 @@ def handle_user_query(user_query: str) -> AnswerPacket:
 
 def analyze_and_decompose(user_query: str) -> List[Task]:
     """
-    LLM-based query analyzer.
-    → Decide intent (numeric/context/web)
-    → Decompose into multiple tasks if needed
-    Returns list of Task objects.
+    Use LLM function calling to parse query into structured tasks.
     """
-    # TODO: implement with LLM prompt
-    return []
+
+    # 1. Define the schema for tasks
+    tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": "decompose_query",
+                "description": "Decompose user query into multiple tasks as needed.for pulling financial MAR data use SQL, or getting context about the financial movement from Pinecone.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "tasks": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "intent": {
+                                        "type": "string",
+                                        "enum": ["numeric", "context", "irrelevant"]
+                                    },
+                                    "helper": {
+                                        "type": "string",
+                                        "description": "SQL helper name (for numeric), or 'semantic' (for context)."
+                                    },
+                                    "params": {
+                                        "type": "object",
+                                        "description": "Parameters like asset_class, product, product_type, year, month, quarter as needed."
+                                    }
+                                },
+                                "required": ["intent", "helper", "params"]
+                            }
+                        }
+                    },
+                    "required": ["tasks"]
+                },
+            },
+        }
+    ]
+
+    # 2. Call the LLM with function schema
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are an analyst expert for financial MAR data.\n"
+                    "When receiving query from user, break down user queries into structured tasks as needed.\n"
+                    "- 'numeric' → SQL helper queries (pick best helper name)\n"
+                    "- 'context' → Pinecone queries ('semantic')\n"
+                    "- 'irrelevant' → outside scope\n"
+                    "Each task must include 'params': product, year, month, quarter where relevant.\n"
+                    "Multiple tasks if multiple comparisons or products are mentioned."
+                    + SQL_HELPER_CATALOG_STR
+                ),
+            },
+            {"role": "user", "content": user_query},
+        ],
+        tools=tools,
+        tool_choice="auto",
+    )
+
+    # 3. Parse the tool call
+    message = response.choices[0].message
+    if not message.tool_calls:
+        return [Task(intent=Intent.IRRELEVANT, helper="none", params={})]
+
+    tool_args = message.tool_calls[0].function.arguments
+    data = eval(tool_args)  # safe because OpenAI guarantees valid JSON
+
+    # 4. Convert to Task dataclasses
+    tasks = []
+    for t in data["tasks"]:
+        intent = Intent(t["intent"])
+        helper = t["helper"]
+        params = t["params"]
+
+        tasks.append(Task(intent=intent, helper=helper, params=params))
+
+    return tasks
 
 
 # ================================================================
@@ -256,7 +335,7 @@ def _build_where_clause(
     return " AND ".join(conditions) if conditions else "1=1"
 
   
-def top_entities_by_metric(
+def _top_entities_by_metric(
     year: int,
     month: Optional[int] = None,
     entity: str = "product",   # "asset_class", "product_type", "product"
@@ -284,37 +363,6 @@ def top_entities_by_metric(
     GROUP BY {entity}
     ORDER BY {metric} DESC
     LIMIT {top_n};
-    """
-
-def total_volume_by_entity(
-    year: int,
-    month: Optional[int] = None,
-    entity: str = "product_type",  # "product", "asset_class", "product_type"
-    product_type: Optional[Union[str, List[str]]] = None,
-    asset_class: Optional[Union[str, List[str]]] = None,
-    product: Optional[Union[str, List[str]]] = None,
-) -> str:
-    """
-    Returns SQL for total trading volume grouped by a given entity.
-    
-    Examples:
-      total_volume_by_entity(year=2025, entity="asset_class")
-        → Total volume by asset class in 2025.
-
-      total_volume_by_entity(year=2024, month=8, entity="product_type")
-        → Total volume by product type in Aug 2024.
-    """
-    where_clause = _build_where_clause(
-        year_start=year, month_start=month,
-        asset_class=asset_class, product=product, product_type=product_type
-    )
-
-    return f"""
-    SELECT {entity}, SUM(volume) AS total_volume
-    FROM {mar_database_name}
-    WHERE {where_clause}
-    GROUP BY {entity}
-    ORDER BY total_volume DESC;
     """
 
 # :::::: Point lookup :::::: #
@@ -431,7 +479,7 @@ def top_asset_classes_by_volume(
           top_asset_classes_by_volume(year=2025, month=6, product="swaps")
             → Top asset classes by volume in Jun 2025, but only counting swaps.
     """
-    return top_entities_by_metric(
+    return _top_entities_by_metric(
         year=year, month=month, entity="asset_class", metric="volume",
         top_n=top_n, product=product, product_type=product_type
     )
@@ -451,7 +499,7 @@ def top_asset_classes_by_adv(
         top_asset_classes_by_adv(year=2025, top_n=5)
           → Top 5 asset classes by ADV in 2025.
     """
-    return top_entities_by_metric(
+    return _top_entities_by_metric(
         year=year, month=month, entity="asset_class", metric="adv",
         top_n=top_n, product=product, product_type=product_type
     )
@@ -473,7 +521,7 @@ def top_product_types_by_volume(
         
       It can filter on Asset Class and Product too.
     """
-    return top_entities_by_metric(
+    return _top_entities_by_metric(
         year=year, month=month, entity="product_type", metric="volume",
         top_n=top_n, asset_class=asset_class, product=product
     )
@@ -493,7 +541,7 @@ def top_product_types_by_adv(
         top_product_types_by_adv(year=2025, top_n=3)
           → Top 3 product types by ADV in 2025.
     """
-    return top_entities_by_metric(
+    return _top_entities_by_metric(
         year=year, month=month, entity="product_type", metric="adv",
         top_n=top_n, asset_class=asset_class, product=product
     )
@@ -516,7 +564,7 @@ def top_products_by_volume(
         top_products_by_volume(year=2024, month=12, top_n=3, asset_class="credit", product_type="derivative")
           → Top 3 product by volume in Dec 2024, under credit asset class and derivative product type.
     """
-    return top_entities_by_metric(
+    return _top_entities_by_metric(
         year=year, month=month, entity="product", metric="volume",
         top_n=top_n, asset_class=asset_class, product_type=product_type
     )
@@ -539,12 +587,43 @@ def top_products_by_adv(
         top_products_by_adv(year=2024, top_n=10, asset_class="rates", product_type="cash")
           → Top 10 cash products in Rates by ADV in 2024.
     """
-    return top_entities_by_metric(
+    return _top_entities_by_metric(
         year=year, month=month, entity="product", metric="adv",
         top_n=top_n, asset_class=asset_class, product_type=product_type
     )
 
 # :::::: Aggregates :::::: #
+
+def total_volume_by_entity(
+    year: int,
+    month: Optional[int] = None,
+    entity: str = "product_type",  # "product", "asset_class", "product_type"
+    product_type: Optional[Union[str, List[str]]] = None,
+    asset_class: Optional[Union[str, List[str]]] = None,
+    product: Optional[Union[str, List[str]]] = None,
+) -> str:
+    """
+    Returns SQL for total trading volume grouped by a given entity.
+    
+    Examples:
+      total_volume_by_entity(year=2025, entity="asset_class")
+        → Total volume by asset class in 2025.
+
+      total_volume_by_entity(year=2024, month=8, entity="product_type")
+        → Total volume by product type in Aug 2024.
+    """
+    where_clause = _build_where_clause(
+        year_start=year, month_start=month,
+        asset_class=asset_class, product=product, product_type=product_type
+    )
+
+    return f"""
+    SELECT {entity}, SUM(volume) AS total_volume
+    FROM {mar_database_name}
+    WHERE {where_clause}
+    GROUP BY {entity}
+    ORDER BY total_volume DESC;
+    """
 
 def trend_adv(
     asset_class: Optional[Union[str, List[str]]] = None,

@@ -14,6 +14,7 @@ import services.utils as utils
 import os
 from services.constants import *
 from services.vectorstores import pinecone_store
+import services.agents.mar_orchestrator as mar_orchestrator
 
 if __name__ == "__main__":
 
@@ -22,6 +23,7 @@ if __name__ == "__main__":
     # db._run_migrations()
 
     # test_runs.test_run_mar_update()
+    # test_runs.test_run_mar_update_with_latest_file()
     # test_runs.test_run_print_all_tables()
     # test_runs.test_run_query1()
     # test_runs.test_run_ALL()
@@ -46,6 +48,12 @@ if __name__ == "__main__":
 
     # from services.nlq import run_cli
     # run_cli()
+
+
+
+    the_query = "What is the total trading volume of Tradeweb in August 2025?"
+    tasks = mar_orchestrator.analyze_and_decompose(user_query=the_query)
+    print(tasks)
 
     pass
 
