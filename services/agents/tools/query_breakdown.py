@@ -30,16 +30,27 @@ def get_breakdown_tools() -> List[Dict[str, Any]]:
                             "items": {
                                 "type": "object",
                                 "properties": {
+                                    "task_id": {
+                                        "type": "integer",
+                                        "description": "Unique identifier for this task, starting from 1"
+                                    },
                                     "task": {
                                         "type": "string",
                                         "description": "Description of what needs to be done"
                                     },
                                     "reason": {
                                         "type": "string",
-                                        "description": "Why this task is needed and why at this position in sequence"
+                                        "description": "Why this task is needed and why it can't be combined with other tasks"
+                                    },
+                                    "dependency_on": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        },
+                                        "description": "List of task_ids that must be completed before this task can start. Empty array means no dependencies. Please avoid circular dependencies!"
                                     }
                                 },
-                                "required": ["task", "reason"]
+                                "required": ["task_id", "task", "reason", "dependency_on"]
                             }
                         }
                     },
@@ -53,42 +64,67 @@ def get_breakdown_prompt() -> str:
     """Get the system prompt for query breakdown."""
     return """You are an expert at breaking down complex queries into sequential tasks.
     Your job is to analyze user queries and determine what tasks need to be done to answer them.
+
+    CRITICAL: Task Optimization Rules
+    1. Avoid Unnecessary Breakdown:
+       - If a single SQL query can efficiently get all needed data, DO NOT break it down
+       - All SQL queries run against the same table, so joins are not needed
+       Example: "Get ADV for cash and credit products"
+       → BAD:  Two separate tasks for cash and credit
+       → GOOD: One task with a single SQL query using IN clause for asset_class
     
-    IMPORTANT: Task Sequencing Rules
-    1. Data Dependencies:
-       - If task B needs data from task A, task A must come first
-       Example: "Compare ADV between cash and credit, and explain why credit is higher"
-       → Tasks:
-         1. Get ADV for cash products (needed for comparison)
-         2. Get ADV for credit products (needed for comparison)
-         3. Search context about credit performance (uses ADV comparison results)
+    2. Valid Reasons for Task Breakdown:
+       a) Different Query Types:
+          - When mixing numeric (SQL) and context (search) queries
+          Example: "What's the ADV trend and why did it change?"
+          → Needs breakdown: One SQL task + one context search task
+       
+       b) Sequential Dependencies:
+          - When later analysis needs results from earlier queries
+          Example: "Show products with above-average ADV"
+          → Needs breakdown: First get average, then filter using that value
+       
+       c) Complex Transformations:
+          - When data needs significant post-processing that can't be done in SQL
+          Example: "Calculate correlation between X and Y over time"
+          → Needs breakdown: Get raw data first, then process
     
-    2. Comparative Analysis:
-       - Get individual data points before computing comparisons
-       Example: "What's the month-over-month change in volume for US ETFs?"
-       → Tasks:
-         1. Get volume for previous month
-         2. Get volume for current month
-         3. Calculate percentage change
+    3. Dependency Management:
+       - Each task must have a unique task_id (starting from 1)
+       - dependency_on must list all task_ids that must complete first
+       - NEVER create circular dependencies
+       - A task can depend on multiple parents
+       - Tasks with no dependencies should have empty dependency_on array
+       
+    4. Task Structure:
+       - task_id: Unique integer identifier
+       - task: Clear description of what to do
+       - reason: MUST explain why this can't be combined with other tasks
+       - dependency_on: Array of parent task_ids ([] if none)
+       
+    Example Good Breakdown:
+    Query: "What's our market share in credit products and why did it change?"
+    Tasks:
+    {
+      "tasks": [
+        {
+          "task_id": 1,
+          "task": "Calculate market share for credit products",
+          "reason": "Need base numeric data before we can analyze changes",
+          "dependency_on": []
+        },
+        {
+          "task_id": 2,
+          "task": "Search for context about credit market share changes",
+          "reason": "Requires different query type (context) and needs task 1's data",
+          "dependency_on": [1]
+        }
+      ]
+    }
     
-    3. Context Enhancement:
-       - Get numerical data before searching for explanatory context
-       Example: "Why did US ETFs volume spike in August 2025?"
-       → Tasks:
-         1. Get volume trend leading up to August 2025 (establish spike)
-         2. Search for news/context about US ETFs in that period
-    
-    4. Aggregation Requirements:
-       - Get granular data before aggregating
-       Example: "What's the total volume by product type in credit asset class?"
-       → Tasks:
-         1. Get volume data for all products in credit asset class
-         2. Aggregate volumes by product type
-    
-    For each task, explain:
-    1. What needs to be done
-    2. Why it's needed
-    3. Why it needs to be done at this position in the sequence
+    Example Bad Breakdown (Don't Do This):
+    Query: "Get ADV for US and EU products"
+    Tasks: Don't split into separate US/EU tasks - use a single SQL query with region IN ('us', 'eu')
     """
 
 def break_down_query(query: str) -> List[BreakdownQueryResult]:
@@ -125,12 +161,38 @@ def break_down_query(query: str) -> List[BreakdownQueryResult]:
         result = response.choices[0].message.tool_calls[0].function.arguments
         data = json.loads(result)
 
+        # Validate task IDs and dependencies
+        task_ids = set()
+        for task in data["tasks"]:
+            task_id = task["task_id"]
+            if task_id in task_ids:
+                raise ValueError(f"Duplicate task_id: {task_id}")
+            task_ids.add(task_id)
+            
+            # Validate dependencies
+            for dep_id in task["dependency_on"]:
+                if dep_id >= task_id:
+                    raise ValueError(f"Invalid dependency: Task {task_id} cannot depend on future task {dep_id}")
+                if dep_id not in task_ids:
+                    raise ValueError(f"Invalid dependency: Task {dep_id} not found for task {task_id}")
+        
+        # Create BreakdownQueryResult objects
         tasks = []
         for task in data["tasks"]:
-            tasks.append(BreakdownQueryResult(task_to_do=task["task"], reason=task["reason"]))
+            tasks.append(BreakdownQueryResult(
+                task_id=task["task_id"],
+                task_to_do=task["task"],
+                reason=task["reason"],
+                dependency_on=set(task["dependency_on"]) if task["dependency_on"] else None
+            ))
         
         return tasks
         
     except Exception as e:
         print(f"Error breaking down query: {e}")
-        return [BreakdownQueryResult(task_to_do="Error analyzing query", reason=str(e))]
+        return [BreakdownQueryResult(
+            task_id=1,
+            task_to_do="Error analyzing query",
+            reason=str(e),
+            dependency_on=None  # No dependencies for error case
+        )]

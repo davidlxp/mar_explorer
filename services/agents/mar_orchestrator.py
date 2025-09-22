@@ -85,26 +85,28 @@ def handle_user_query(user_query: str) -> AnswerPacket:
         print(f"reason:  {item.reason}")
     print("\n---------------")
     
-    # Now analyze each task to determine intent and generate helper
-    for item in breakdown_results:
-        task_to_do = item.task_to_do
-        res = plan_query_action(task_to_do)
-        print("\nTask Analysis:")
-        print("---------------")
-        print(f"task_to_do: {res.task_to_do}")
-        print(f"todo_intent: {res.todo_intent}")
-        print(f"helper_for_action: {res.helper_for_action}")
-        print(f"confidence: {res.confidence}")
-        print(f"confidence_reason: {res.confidence_reason}")
-        print("\n---------------")
+    # Plan all tasks
+    all_planned_results = plan_all_tasks(breakdown_results)
+    print("\nAll Planned Results:")
+    print("---------------")
+    for task_id in sorted(all_planned_results.keys()):
+        result = all_planned_results[task_id]
+        print(f"\nTask {task_id}:")
+        print(f"task_to_do: {result.task_to_do}")
+        print(f"todo_intent: {result.todo_intent}")
+        print(f"helper_for_action: {result.helper_for_action}")
+        print(f"confidence: {result.confidence}")
+        print(f"confidence_reason: {result.confidence_reason}")
+    print("\n---------------")
     
-    # # Execute tasks and compose answer
+    # # Execute tasks based on intent
     # results = []
-    # for task in tasks:
-    #     if task.intent == Intent.NUMERIC:
-    #         results.append(run_numeric_task(task))
-    #     elif task.intent == Intent.CONTEXT:
-    #         results.append(run_context_task(task))
+    # for task_id in sorted(completed_tasks):
+    #     res = task_results[task_id]
+    #     if res.todo_intent == TodoIntent.NUMERIC:
+    #         results.append(run_numeric_task())
+    #     elif res.todo_intent == TodoIntent.CONTEXT:
+    #         results.append(run_context_task())
     #     else:
     #         return AnswerPacket(
     #             text="Sorry, I can only help with MAR numeric or context queries.",
@@ -112,7 +114,54 @@ def handle_user_query(user_query: str) -> AnswerPacket:
     #             confidence=0.99,
     #         )
 
-    # return compose_final_answer(user_query, tasks, results)
+    # return compose_final_answer(user_query, results)
+
+
+def plan_all_tasks(breakdown_results: List[BreakdownQueryResult]) -> Dict[int, PlanningResult]:
+    """
+    Plan all tasks in dependency order.
+    
+    Args:
+        breakdown_results: List of tasks with their dependencies
+        
+    Returns:
+        Dictionary mapping task_id to its planning result
+    """
+    all_planned_results = {}
+    
+    # Keep processing until all tasks are done
+    while len(all_planned_results) < len(breakdown_results):
+        # Find tasks that can be executed (all dependencies satisfied)
+        for task in breakdown_results:
+            if task.task_id in all_planned_results:
+                continue
+                
+            # If dependencies are not met yet, skip
+            if task.dependency_on and not task.dependency_on.issubset(all_planned_results.keys()):
+                continue
+            
+            print(f"\nExecuting Task {task.task_id}:")
+            print("---------------")
+            print(f"Task: {task.task_to_do}")
+            print(f"Reason: {task.reason}")
+            if task.dependency_on:
+                print(f"Using results from Task {task.dependency_on}")
+            
+            # Execute the task
+            res = plan_query_action(task.task_to_do)
+            print("\nTask Analysis:")
+            print("---------------")
+            print(f"task_to_do: {res.task_to_do}")
+            print(f"todo_intent: {res.todo_intent}")
+            print(f"helper_for_action: {res.helper_for_action}")
+            print(f"confidence: {res.confidence}")
+            print(f"confidence_reason: {res.confidence_reason}")
+            print("\n---------------")
+            
+            # Store results
+            all_planned_results[task.task_id] = res
+    
+    return all_planned_results
 
 def run_numeric_task() -> SqlResult:
     """
