@@ -228,12 +228,18 @@ def turn_md_into_blocks_pr(md_text: str) -> tuple[list[str], list[list[str]]]:
     return (parents, children_groups)
 
 
-def split_md_to_chunks_pr(md_text: str, report_type: str) -> str:
+def split_md_to_chunks_pr(md_text: str, metadata: dict) -> str:
     '''
         Try to separate the content into chunks, it's preparing for the content embedding process.
 
         If can find the separate pattern, do separation.
         If can't find the separate pattern, treat the time we find the next line indentation to detect subline.
+
+        Args:
+            md_text: The markdown text to be split into chunks
+            meta_data: The meta data of the press release where this chunk belongs to
+        Returns:
+            A list of text, and each stands for a chunk
     '''
     lines = md_text.splitlines()
 
@@ -278,7 +284,7 @@ def split_md_to_chunks_pr(md_text: str, report_type: str) -> str:
         # Turn the content section into blocks
         parents, children_groups = turn_md_into_blocks_pr('\n'.join(content_section))
         
-        if report_type == "monthly":
+        if metadata['report_type'] == "monthly":
             chunk_overlap_lines = PR_M_CHUNK_OVERLAP_LINES
             chunking_strategy = PR_M_CHUNKING_STRATEGY
         else:
@@ -305,15 +311,56 @@ def split_md_to_chunks_pr(md_text: str, report_type: str) -> str:
     return chunks_out
 
 
-def embed_and_upload_pr_chunks(chunks, url, report_name, report_type, year, month, quarter):
+def add_signature_to_chunks_pr(chunks, metadata: dict):
+    """
+    Add a concise, machine-friendly signature to each chunk 
+    to facilitate time-based search.
+    """
+    report_name = metadata["report_name"]
+    report_type = metadata["report_type"]
+    year = metadata["year"]
+    month = metadata.get("month")
+    quarter = metadata.get("quarter")
 
+    # Build date signature
+    if report_type == "monthly":
+        date_sig = f"{year}-{month:02d}"
+    elif report_type == "quarterly":
+        date_sig = f"{year}-Q{quarter}"
+    elif report_type == "yearly":
+        date_sig = str(year)
+    else:
+        raise ValueError(f"Invalid report type: {report_type}")
+
+    # Create unified signature
+    signature = f"[report={report_name} | type={report_type} | date={date_sig}]"
+
+    # Prepend signature to chunks
+    return [f"{signature}\n{chunk}" for chunk in chunks]
+
+
+def upload_pr_chunks_to_vectorstore(chunks, metadata: dict):
+    '''
+        Upload the press release chunks to the vector store.
+        The embedding is done automatically by Pinecone.
+    '''
+    # Get the metadata of the PR
+    url = metadata["url"]
+    report_name = metadata["report_name"]
+    report_type = metadata["report_type"]
+    year = metadata["year"]
+    month = metadata.get("month")
+    quarter = metadata.get("quarter")
+
+    # Created the records for upserting
     records_to_upsert = []
     for i, chunk in enumerate(chunks):
+
         # deterministic ID as you had
         id_str = f"{url}-{report_name}-{chunk}"
         id_hash = hashlib.sha256(id_str.encode()).hexdigest()
 
-        metadata = {
+        metadata_chunk = {
             "url": str(url),
             "report_name": str(report_name),
             "report_type": str(report_type),
@@ -327,7 +374,7 @@ def embed_and_upload_pr_chunks(chunks, url, report_name, report_type, year, mont
         records_to_upsert.append({
             "id": id_hash,
             "text": chunk,
-            "metadata": metadata
+            "metadata": metadata_chunk
         })
 
         # upsert_records is the operation which lets Pinecone embed automatically
@@ -346,22 +393,20 @@ async def ingest_pr_md_file(file_path: str) -> bool:
     
     # Get the raw markdown and meta data
     md_raw = utils.read_file(file_path)
-    meta_data = utils.get_meta_file(file_path)
+    metadata = utils.get_meta_file(file_path)
 
-    # Get meta data details
-    url = meta_data['url']
-    report_name = meta_data['report_name']
-    report_type = meta_data['report_type']
-    year = meta_data['year']
-    month = meta_data['month']
-    quarter = meta_data['quarter']
-
-    # Clean and chunk the markdown
+    # Clean up the PR markdown file
     md_cleaned = try_rm_junk_part_for_pr(md_raw)
-    md_chunks = split_md_to_chunks_pr(md_cleaned, report_type)
+
+    # Split the PR markdown file into chunks
+    md_chunks = split_md_to_chunks_pr(md_cleaned, metadata)
+
+    # Add signature to the chunks
+    if PR_ADD_SIGNATURE_TO_CHUNKS:
+        md_chunks = add_signature_to_chunks_pr(md_chunks, metadata)
 
     # Embed and upload to DB
-    embed_and_upload_pr_chunks(md_chunks, url, report_name, report_type, year, month, quarter)
+    upload_pr_chunks_to_vectorstore(md_chunks, metadata)
 
     return True
 

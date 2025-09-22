@@ -129,6 +129,7 @@ PR_DEFAULT_TAG_CONTENT_ALLOWED_TOKEN = 30
 
 PR_DEFAULT_CHUNK_OVERLAP_LINES = 1              # Num of lines allowed to overlap between the chunks
 
+PR_ADD_SIGNATURE_TO_CHUNKS = True
 
 # :::::: PR-M MD Embedding Related :::::: #
 
