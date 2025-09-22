@@ -179,16 +179,34 @@ def analyze_and_decompose(user_query: str) -> List[Task]:
         return [Task(intent=Intent.IRRELEVANT, helper="none", params={})]
 
     tool_args = message.tool_calls[0].function.arguments
-    data = eval(tool_args)  # safe because OpenAI guarantees valid JSON
-
-    # 4. Convert to Task dataclasses
-    tasks = []
-    for t in data["tasks"]:
-        intent = Intent(t["intent"])
-        helper = t["helper"]
-        params = t["params"]
-
-        tasks.append(Task(intent=intent, helper=helper, params=params))
+    try:
+        import json
+        data = json.loads(tool_args)
+        
+        # 4. Convert to Task dataclasses
+        tasks = []
+        for t in data.get("tasks", []):
+            # Validate required fields
+            if not all(key in t for key in ["intent", "helper", "params"]):
+                print(f"Warning: Malformed task data: {t}")
+                continue
+                
+            intent = Intent(t["intent"])
+            helper = t["helper"]
+            params = t["params"]
+            
+            tasks.append(Task(intent=intent, helper=helper, params=params))
+            
+        if not tasks:
+            return [Task(intent=Intent.IRRELEVANT, helper="none", params={})]
+            
+        return tasks
+    except json.JSONDecodeError as e:
+        print(f"Error parsing OpenAI response: {e}")
+        return [Task(intent=Intent.IRRELEVANT, helper="none", params={})]
+    except Exception as e:
+        print(f"Unexpected error processing tasks: {e}")
+        return [Task(intent=Intent.IRRELEVANT, helper="none", params={})]
 
     return tasks
 
