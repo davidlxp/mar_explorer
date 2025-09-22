@@ -147,7 +147,8 @@ def handle_user_query(user_query: str) -> AnswerPacket:
     print("---------------")
     for task_id in sorted(all_planned_results.keys()):
         result = all_planned_results[task_id]
-        print(f"\nTask {task_id}:")
+        print(f"task_id: {result.task_id}")
+        print(f"dependency_on: {result.dependency_on}")
         print(f"task_to_do: {result.task_to_do}")
         print(f"todo_intent: {result.todo_intent}")
         print(f"helper_for_action: {result.helper_for_action}")
@@ -202,14 +203,6 @@ def plan_all_tasks(breakdown_results: List[BreakdownQueryResult]) -> Dict[int, P
             
             # Execute the task with parent plans
             res = plan_query_action(task, all_planned_results)
-            print("\Planned Task:")
-            print("---------------")
-            print(f"task_to_do: {res.task_to_do}")
-            print(f"todo_intent: {res.todo_intent}")
-            print(f"helper_for_action: {res.helper_for_action}")
-            print(f"confidence: {res.confidence}")
-            print(f"confidence_reason: {res.confidence_reason}")
-            print("\n---------------")
             
             # Store results
             all_planned_results[task.task_id] = res
