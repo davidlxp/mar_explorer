@@ -157,6 +157,18 @@ def plan_query_action(task: BreakdownQueryResult, parent_plans: Dict[int, Planni
         # Get parent plan summary if available
         parent_summary = summarize_parent_plans(task, parent_plans) if parent_plans else ""
         parent_context = f"\nParent Task Context:\n{parent_summary}" if parent_summary else ""
+
+
+        ###### Testing Below ######
+        print("\n\n")
+        print("--------------------------------")
+        print("\n")
+        print(parent_context)
+        print("\n")
+        print("--------------------------------")
+        print("\n\n")
+
+        ###### Testing Above ######
         
         # Get tools and prompt
         tools = get_plan_query_action_tools()

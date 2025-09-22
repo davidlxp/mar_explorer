@@ -18,13 +18,13 @@ def get_summarize_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "summarize_plans",
-                "description": "Create a concise summary of parent task plans",
+                "description": "Create a concise summary of ancestor task plans",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "summary": {
                             "type": "string",
-                            "description": "A concise summary of what parent tasks plan to do and how it might influence the current task"
+                            "description": "A concise summary of what ancestor tasks plan to do and how it might influence the current task"
                         }
                     },
                     "required": ["summary"]
@@ -38,7 +38,8 @@ def get_summarize_system_prompt() -> str:
     Get the system prompt for summarizing parent task plans.
     """
     return """You are an expert at summarizing task plans.
-    Your job is to create a concise summary of what parent tasks plan to do,
+    Your job is to create a concise summary of what ancestor tasks of this task plan to do.
+    Basically, if a task needs to wait for the results of another task, the action of this task is depends on the action of the other task.
     focusing on how their actions and results might influence the current task."""
 
 def summarize_parent_plans(task: BreakdownQueryResult, parent_plans: Dict[int, PlanningResult]) -> str:
@@ -71,7 +72,18 @@ def summarize_parent_plans(task: BreakdownQueryResult, parent_plans: Dict[int, P
     ancestor_plans = []
     for ancestor_id in sorted(ancestors):
         plan = parent_plans[ancestor_id]
-        ancestor_plans.append(f"Task {ancestor_id}: {plan.todo_intent} - {plan.helper_for_action}")
+        ancestor_plans.append(f"""
+            Task {ancestor_id}: {plan.todo_intent} - {plan.helper_for_action}
+        
+        """)
+
+    print("\n\n")
+    print("--------------------------------")
+    print("\n kkkkkkkkkkk")
+    print(ancestor_plans)
+    print("\n")
+    print("--------------------------------")
+    print("\n\n")
     
     # Get summary from AI
     system_prompt = get_summarize_system_prompt()
