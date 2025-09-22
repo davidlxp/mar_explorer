@@ -6,6 +6,9 @@ Module for analyzing and breaking down user queries into sequential tasks.
 from typing import List, Dict, Any
 from openai import OpenAI
 from services.constants import MAR_ORCHESTRATOR_MODEL
+from services.agents.data_model import BreakdownQueryResult
+
+import json
 
 client = OpenAI()
 model = MAR_ORCHESTRATOR_MODEL
@@ -88,7 +91,7 @@ def get_breakdown_prompt() -> str:
     3. Why it needs to be done at this position in the sequence
     """
 
-def break_down_query(query: str) -> List[Dict[str, str]]:
+def break_down_query(query: str) -> List[BreakdownQueryResult]:
     """
     Break down a user query into sequential tasks.
     
@@ -116,15 +119,18 @@ def break_down_query(query: str) -> List[Dict[str, str]]:
         
         # Parse response
         if not response.choices[0].message.tool_calls:
-            return [{"task": "Query is irrelevant", "reason": "Outside the scope of MAR data"}]
+            return [BreakdownQueryResult(task_to_do="Can't figure out how to break down the query.", reason="Just can't figure it out.")]
             
         # Extract tasks
         result = response.choices[0].message.tool_calls[0].function.arguments
-        import json
         data = json.loads(result)
+
+        tasks = []
+        for task in data["tasks"]:
+            tasks.append(BreakdownQueryResult(task_to_do=task["task"], reason=task["reason"]))
         
-        return data["tasks"]
+        return tasks
         
     except Exception as e:
         print(f"Error breaking down query: {e}")
-        return [{"task": "Error analyzing query", "reason": str(e)}]
+        return [BreakdownQueryResult(task_to_do="Error analyzing query", reason=str(e))]

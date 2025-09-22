@@ -3,67 +3,19 @@ mar_orchestrator.py
 High-level orchestrator for handling MAR queries with Snowflake + Pinecone (and optional Web search).
 """
 
-from typing import Optional
-from dataclasses import dataclass
-from enum import Enum
 from typing import List, Dict, Any
-
 from services.agents.mar_helper import get_mar_table_schema, load_available_products, get_sql_examples
 from services.agents.tools.openai_tools import get_query_analysis_tools, get_system_prompt, call_openai
 from services.agents.tools.query_processor import parse_openai_response
 from services.agents.tools.query_breakdown import break_down_query
+from services.agents.data_model import (
+    TodoIntent, BreakdownQueryResult, AnalysisResult, SqlResult,
+    AnswerPacket, ContextChunk, RetrievalResult
+)
 from services.constants import MAR_TABLE_PATH
 
 from services.db import get_database
 db = get_database()
-
-
-class Intent(str, Enum):
-    NUMERIC = "numeric"
-    CONTEXT = "context"
-    IRRELEVANT = "irrelevant"
-
-@dataclass
-class Task:
-    """Multiple tasks can be generated for a single user query."""
-    intent: Intent
-    helper_for_action: Optional[str]  # SQL query or vector search query or None
-    confidence: float = 0.0
-
-# Class holding the result of intent analysis
-@dataclass
-class AnalysisResult:
-    """A list of all tasks generated for a single user query."""
-    tasks: List[Task]
-
-# Class holding the result of a SQL query (numeric task)
-@dataclass
-class SqlResult:
-    rows: List[Dict[str, Any]]
-    cols: List[str]
-    source: str = f"snowflake.{MAR_TABLE_PATH}"
-
-# Class holding the final answer to user's query
-@dataclass
-class AnswerPacket:
-    text: str
-    citations: List[Dict[str, Any]]
-    confidence: float
-
-# Class holding information about a context chunk
-@dataclass
-class ContextChunk:
-    id: str
-    text: str
-    meta: Dict[str, Any]
-    score: float
-
-# Class holding the result of a context query against Vector Database
-@dataclass
-class RetrievalResult:
-    chunks: List[ContextChunk]
-    confidence: float
-    strategy: str
 
 def analyze_and_decompose(user_query: str) -> AnalysisResult:
     """
@@ -74,9 +26,8 @@ def analyze_and_decompose(user_query: str) -> AnalysisResult:
         
     Returns:
         AnalysisResult containing:
-        - intent: The type of query (numeric/context/irrelevant)
-        - helper_for_action: SQL query for numeric intent, search query for context intent, None for irrelevant
-        - confidence: Model's confidence in the analysis
+        - todo_intent: The type of action needed (numeric/context)
+        - helper_for_action: SQL query for numeric intent, search query for context intent
     """
     try:
         # Load required data
@@ -94,26 +45,17 @@ def analyze_and_decompose(user_query: str) -> AnalysisResult:
         # Parse and validate response
         result = parse_openai_response(response)
         
-        # Convert results to Task objects
-        tasks = []
-        for task_data in result["tasks"]:
-            tasks.append(Task(
-                intent=Intent(task_data["intent"]),
-                helper_for_action=task_data["helper_for_action"],
-                confidence=task_data["confidence"]
-            ))
-            
-        return AnalysisResult(tasks=tasks)
+        return AnalysisResult(
+            todo_intent=TodoIntent(result["todo_intent"]),
+            helper_for_action=result["helper_for_action"]
+        )
         
     except Exception as e:
         print(f"Error analyzing query: {e}")
-        return AnalysisResult(tasks=[
-            Task(
-                intent=Intent.IRRELEVANT,
-                helper_for_action=None,
-                confidence=0.0
-            )
-        ])
+        return AnalysisResult(
+            todo_intent=TodoIntent.CONTEXT,
+            helper_for_action=None
+        )
 
 def handle_user_query(user_query: str) -> str:
 
@@ -128,17 +70,24 @@ def handle_user_query(user_query: str) -> AnswerPacket:
     4. Compose final answer
     """
     # First, break down the query into sequential tasks
-    task_breakdown = break_down_query(user_query)
+    breakdown_results = break_down_query(user_query)
     print("\nQuery Breakdown:")
     print("---------------")
-    for i, task in enumerate(task_breakdown, 1):
+    for i, item in enumerate(breakdown_results, 1):
         print(f"\nTask {i}:")
-        print(f"What: {task['task']}")
-        print(f"Why:  {task['reason']}")
+        print(f"task_to_do: {item.task_to_do}")
+        print(f"reason:  {item.reason}")
     print("\n---------------")
     
     # Now analyze each task to determine intent and generate helper
-    # tasks = analyze_and_decompose(user_query)
+    for item in breakdown_results:
+        task_to_do = item.task_to_do
+        res = analyze_and_decompose(task_to_do)
+        print("\nTask Analysis:")
+        print("---------------")
+        print(f"todo_intent: {res.todo_intent}")
+        print(f"helper_for_action: {res.helper_for_action}")
+        print("\n---------------")
     
     # # Execute tasks and compose answer
     # results = []
