@@ -1,12 +1,12 @@
 """
 query_breakdown.py
-Module for analyzing and breaking down user queries into sequential tasks.
+AI agent for analyzing and breaking down user queries into sequential tasks.
 """
 
 from typing import List, Dict, Any
 from openai import OpenAI
 from services.constants import MAR_ORCHESTRATOR_MODEL
-from services.agents.data_model import BreakdownQueryResult
+from services.ai_workflow.data_model import BreakdownQueryResult
 
 import json
 
@@ -60,7 +60,7 @@ def get_breakdown_tools() -> List[Dict[str, Any]]:
         }
     ]
 
-def get_breakdown_prompt() -> str:
+def get_breakdown_system_prompt() -> str:
     """Get the system prompt for query breakdown."""
     return """You are an expert at breaking down complex queries into sequential tasks.
     Your job is to analyze user queries and determine what tasks need to be done to answer them.
@@ -165,7 +165,7 @@ def break_down_query(query: str) -> List[BreakdownQueryResult]:
     try:
         # Get tools and prompt
         tools = get_breakdown_tools()
-        system_prompt = get_breakdown_prompt()
+        system_prompt = get_breakdown_system_prompt()
         
         # Call OpenAI
         response = client.chat.completions.create(

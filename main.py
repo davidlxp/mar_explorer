@@ -14,7 +14,7 @@ import services.utils as utils
 import os
 from services.constants import *
 from services.vectorstores import pinecone_store
-import services.agents.mar_orchestrator as mar_orchestrator
+import services.ai_workflow.mar_orchestrator as mar_orchestrator
 
 if __name__ == "__main__":
 

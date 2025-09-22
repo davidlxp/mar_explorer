@@ -13,6 +13,13 @@ class TodoIntent(str, Enum):
     AGGREGATION = "aggregation"
 
 @dataclass
+class TableSchema:
+    """Represents the schema of the mar_combined_m table"""
+    name: str
+    columns: Dict[str, str]  # column_name -> data_type
+    description: str
+
+@dataclass
 class BreakdownQueryResult:
     """Information about a single task broken down from the query."""
     task_id: int

@@ -1,20 +1,36 @@
 """
-mar_helper.py
-Helper functions for MAR data analysis and query generation.
+query_processor.py
+Tools for processing and validating query responses.
 """
 
-from dataclasses import dataclass
-from typing import List, Dict, Optional, Union
 import json
+from typing import Dict, Any, Optional, Union, List
 from pathlib import Path
 from services.constants import MAR_TABLE_PATH
+from services.ai_workflow.data_model import TableSchema
 
-@dataclass
-class TableSchema:
-    """Represents the schema of the mar_combined_m table"""
-    name: str
-    columns: Dict[str, str]  # column_name -> data_type
-    description: str
+def regularize_sql_query(query: str) -> str:
+    """
+    Check and regularize a SQL query.
+    
+    Args:
+        query: The SQL query to process
+        
+    Returns:
+        The processed SQL query
+    """
+    if not query:
+        return query
+        
+    # Ensure correct table name
+    if MAR_TABLE_PATH not in query and "mar_combined_m" in query:
+        query = query.replace("mar_combined_m", MAR_TABLE_PATH)
+    
+    # Validate string quotes (Snowflake prefers single quotes)
+    if '"' in query:
+        query = query.replace('"', "'")
+        
+    return query
 
 def get_mar_table_schema() -> TableSchema:
     """
@@ -70,40 +86,3 @@ def load_available_products() -> Dict[str, Union[List[str], Dict[str, List[str]]
             "product_types": [],
             "products_by_type": {}
         }
-
-def get_sql_examples() -> str:
-    """
-    Returns example SQL queries for the mar_combined_m table.
-    These examples help the AI understand proper Snowflake SQL syntax and table usage.
-    """
-    return f"""
-Example Queries:
-
-1. Get total volume for all products in August 2025:
-   SELECT SUM(volume) as total_volume
-   FROM {MAR_TABLE_PATH}
-   WHERE year = 2025 
-     AND month = 8;
-
-2. Get total volume for credit derivatives in August 2025:
-   SELECT SUM(volume) as total_volume
-   FROM {MAR_TABLE_PATH}
-   WHERE year = 2025 
-     AND month = 8
-     AND asset_class = 'credit'
-     AND product_type = 'derivatives';
-
-3. Get monthly ADV trend for US ETFs in 2025:
-   SELECT year, month, AVG(adv) as average_daily_volume
-   FROM {MAR_TABLE_PATH}
-   WHERE year = 2025
-     AND product = 'us etfs'
-   GROUP BY year, month
-   ORDER BY year, month;
-
-Note: The table contains:
-- Volumes are stored in the 'volume' column (DOUBLE PRECISION)
-- ADV (Average Daily Volume) in the 'adv' column (DOUBLE PRECISION)
-- Time dimensions: year (NUMBER) and month (NUMBER)
-- Product dimensions: asset_class, product_type, product (all VARCHAR)
-"""
