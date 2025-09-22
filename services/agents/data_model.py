@@ -10,12 +10,15 @@ from typing import List, Dict, Any, Optional
 class TodoIntent(str, Enum):
     NUMERIC = "numeric"
     CONTEXT = "context"
+    CALCULATION = "calculation"
 
 @dataclass
 class BreakdownQueryResult:
     """Information about a single task broken down from the query."""
+    task_id: int
     task_to_do: str
     reason: str
+    dependency_on: Optional[int] = None
 
 @dataclass
 class PlanningResult:
