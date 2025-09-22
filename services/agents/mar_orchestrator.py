@@ -9,7 +9,7 @@ from services.agents.tools.openai_tools import get_query_analysis_tools, get_sys
 from services.agents.tools.query_processor import parse_openai_response
 from services.agents.tools.query_breakdown import break_down_query
 from services.agents.data_model import (
-    TodoIntent, BreakdownQueryResult, AnalysisResult, SqlResult,
+    TodoIntent, BreakdownQueryResult, PlanningResult, SqlResult,
     AnswerPacket, ContextChunk, RetrievalResult
 )
 from services.constants import MAR_TABLE_PATH
@@ -17,7 +17,7 @@ from services.constants import MAR_TABLE_PATH
 from services.db import get_database
 db = get_database()
 
-def plan_query_action(user_query: str) -> AnalysisResult:
+def plan_query_action(user_query: str) -> PlanningResult:
     """
     Analyze user query to determine intent and generate appropriate helper (SQL/vector query).
     
@@ -45,14 +45,14 @@ def plan_query_action(user_query: str) -> AnalysisResult:
         # Parse and validate response
         result = parse_openai_response(response)
         
-        return AnalysisResult(
+        return PlanningResult(
             todo_intent=TodoIntent(result["todo_intent"]),
             helper_for_action=result["helper_for_action"]
         )
         
     except Exception as e:
         print(f"Error analyzing query: {e}")
-        return AnalysisResult(
+        return PlanningResult(
             todo_intent=TodoIntent.CONTEXT,
             helper_for_action=None
         )

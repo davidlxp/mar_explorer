@@ -18,10 +18,12 @@ class BreakdownQueryResult:
     reason: str
 
 @dataclass
-class AnalysisResult:
+class PlanningResult:
     """Result of analyzing a single task."""
+    task_to_do: str
     todo_intent: TodoIntent
     helper_for_action: Optional[str]  # SQL query or vector search query or None
+    confidence: float
 
 @dataclass
 class SqlResult:
