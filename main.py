@@ -15,6 +15,7 @@ import services.crawler as crawler
 # from services.constants import *
 # from services.vectorstores import pinecone_store
 import services.ai_workflow.mar_orchestrator as mar_orchestrator
+from services.ai_workflow.utils.common_utils import load_available_products, get_mar_table_schema
 
 if __name__ == "__main__":
 
@@ -58,9 +59,12 @@ if __name__ == "__main__":
     # the_query = "What is ADV for cash productsin Aug 2025?"
 
     # the_query = "What is ADV for cash productsin Aug 2025? And how about for credit?"
-    the_query = "YoY comparison of ADV for cash products for August, comparing 2025 to 2024"
-    tasks = mar_orchestrator.handle_user_query(user_query=the_query)
-    print(tasks)
+    # the_query = "YoY comparison of ADV for cash products for August, comparing 2025 to 2024"
+    # tasks = mar_orchestrator.handle_user_query(user_query=the_query)
+
+
+    info = get_mar_table_schema()
+    print(info)
 
     pass
 

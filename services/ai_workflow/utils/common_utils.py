@@ -49,7 +49,7 @@ def get_mar_table_schema() -> TableSchema:
             "volume": "DOUBLE PRECISION",
             "adv": "DOUBLE PRECISION"
         },
-        description="Monthly MAR (Market Activity Report) data containing trading volumes and average daily volumes (adv) by multiple dimensions. Their hierarchies are: asset_class -> product_type -> product."
+        description="Monthly MAR (Market Activity Report) data containing trading volumes and average daily volumes (adv) by multiple dimensions. Their hierarchies are: asset_class -> product_type -> product. All text value in tablees are in lowercase."
     )
 
 def load_available_products():
