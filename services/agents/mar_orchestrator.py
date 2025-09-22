@@ -17,7 +17,7 @@ from services.constants import MAR_TABLE_PATH
 from services.db import get_database
 db = get_database()
 
-def analyze_and_decompose(user_query: str) -> AnalysisResult:
+def plan_query_action(user_query: str) -> AnalysisResult:
     """
     Analyze user query to determine intent and generate appropriate helper (SQL/vector query).
     
@@ -82,7 +82,7 @@ def handle_user_query(user_query: str) -> AnswerPacket:
     # Now analyze each task to determine intent and generate helper
     for item in breakdown_results:
         task_to_do = item.task_to_do
-        res = analyze_and_decompose(task_to_do)
+        res = plan_query_action(task_to_do)
         print("\nTask Analysis:")
         print("---------------")
         print(f"todo_intent: {res.todo_intent}")
