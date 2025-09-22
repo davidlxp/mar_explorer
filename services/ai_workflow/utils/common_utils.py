@@ -8,6 +8,10 @@ from typing import Dict, Any, Optional, Union, List
 from pathlib import Path
 from services.constants import MAR_TABLE_PATH
 from services.ai_workflow.data_model import TableSchema
+from services.db import get_database
+from services.vectorstores import pinecone_store
+
+db = get_database()
 
 def regularize_sql_query(query: str) -> str:
     """
@@ -58,3 +62,17 @@ def load_available_products():
         products = json.load(f)
 
     return products
+
+def submit_sql_query(query: str) -> str:
+    """
+    Submit a SQL query to the database and return the result.
+    """
+    result = db.fetchall(query)
+    return result
+
+def submit_vector_query(query: str) -> str:
+    """
+    Submit a vector query to the database and return the result.
+    """
+    result = pinecone_store.search_content(query)
+    return result

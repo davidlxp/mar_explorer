@@ -69,7 +69,7 @@ def upsert_records(
 
 def search_content(
     query: str,
-    top_k: int = 5,
+    top_k: int = 3,
     metadata: Optional[Dict[str, Any]] = None,
     fields: Optional[List[str]] = None
 ) -> List[Dict[str, Any]]:

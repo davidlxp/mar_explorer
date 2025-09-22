@@ -15,7 +15,7 @@ import services.crawler as crawler
 # from services.constants import *
 # from services.vectorstores import pinecone_store
 import services.ai_workflow.mar_orchestrator as mar_orchestrator
-from services.ai_workflow.utils.common_utils import load_available_products, get_mar_table_schema
+from services.ai_workflow.utils.common_utils import load_available_products, get_mar_table_schema, submit_sql_query, submit_vector_query
 
 if __name__ == "__main__":
 
@@ -63,7 +63,8 @@ if __name__ == "__main__":
     # tasks = mar_orchestrator.handle_user_query(user_query=the_query)
 
 
-    info = get_mar_table_schema()
+    # info = submit_sql_query("SELECT * FROM mar_combined_m LIMIT 10")
+    info = submit_vector_query("Why Swaps >=1 grow up?")
     print(info)
 
     pass
