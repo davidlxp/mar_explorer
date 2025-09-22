@@ -32,6 +32,6 @@ MAR_COMBINED_SCHEMA = {
     "year": "int32",
     "month": "int32",
     "volume": "float64",
-    "avg_volume": "float64",
+    "adv": "float64",
     "updated_at": "string",  # Store as string in ISO format for better compatibility
 }

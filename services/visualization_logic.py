@@ -25,7 +25,7 @@ WITH monthly_data AS (
         year,
         month,
         SUM(volume) as total_volume,
-        SUM(avg_volume) as total_adv
+        SUM(adv) as total_adv
     FROM mar_combined_m
     GROUP BY year_month, year, month
 ),
@@ -36,7 +36,7 @@ filtered_data AS (
         year,
         month,
         SUM(volume) as total_volume,
-        SUM(avg_volume) as total_adv
+        SUM(adv) as total_adv
     FROM mar_combined_m
     WHERE {where_clause}
     GROUP BY year_month, year, month

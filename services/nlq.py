@@ -80,13 +80,13 @@ Your primary capabilities:
    - Asset Classes: Rates, Credit, Equities, Money Markets
    - Products: Cash, Derivatives
    - Product Types: Various specific products under each asset class
-   - Metrics: volume (total trading volume) and avg_volume (ADV)
+   - Metrics: volume (total trading volume) and ADV
    - Time: monthly data points with year and month information
 
 Data Query Guidelines:
 1. For volume-related questions:
    - When users ask about "volume", "trading volume", "total volume" → query the 'volume' metric
-   - When users ask about "ADV", "average volume", "average daily volume" → query the 'avg_volume' metric
+   - When users ask about "ADV", "average volume", "average daily volume" → query the 'adv' metric
    - If no specific asset class is mentioned, query total volume across all asset classes
    - Always include the 'volume' metric in your query when users ask about trading activity
    - For comparative questions (e.g., "compared to last year"), use the previous query's filters but update the time period
@@ -149,9 +149,9 @@ FUNCTION_DEFINITIONS = [
                 "properties": {
                     "metrics": {
                         "type": "array",
-                        "description": "List of metrics to query. Use 'volume' for total trading volume, 'avg_volume' for ADV. For general volume questions, always include 'volume'.",
+                        "description": "List of metrics to query. Use 'volume' for total trading volume, 'adv' for ADV. For general volume questions, always include 'volume'.",
                         "items": {"type": "string"},
-                        "examples": [["volume"], ["volume", "avg_volume"]]
+                        "examples": [["volume"], ["volume", "adv"]]
                     },
                     "filters": {
                         "type": "object",
@@ -392,9 +392,9 @@ def format_data_summary(data: List[Dict]) -> str:
         summary.append(f"Total Volume: {total_volume:,.2f}")
         
     # Add average daily volume if present
-    if 'avg_volume' in df.columns:
-        avg_volume = df['avg_volume'].mean()
-        summary.append(f"Average Daily Volume: {avg_volume:,.2f}")
+    if 'adv' in df.columns:
+        adv = df['adv'].mean()
+        summary.append(f"Average Daily Volume: {adv:,.2f}")
     
     # Add time period context
     if 'year_month' in df.columns:

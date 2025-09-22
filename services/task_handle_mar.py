@@ -36,6 +36,36 @@ pd.set_option("display.max_columns", None) # show all columns
 pd.set_option("display.width", None)       # don't wrap to next line
 pd.set_option("display.max_colwidth", None) # show full column content
 
+def update_mar_with_latest_file():
+    '''
+        Module updates the MAR with the latest file in storage
+        For storage location, see MAR_RAW_FILES_FOLDER_PATH_STR in constants.py
+    '''
+    # :::::: Crawl to find the latest MAR file and download it :::::: #
+    crawl_latest_mar_file()
+
+    # :::::: Get the latest MAR file :::::: #
+    latest_file_path = get_latest_mar_file_from_storage()
+
+    # :::::: Handle the MAR update :::::: #
+    handle_mar_update(latest_file_path)
+
+def handle_mar_update(file):
+    '''
+        Module handles the mar upload process.
+    '''
+    # Parse the MAR file into files for each tab
+    for tab in mar_tabs:
+        parse_mar_to_file(file, tab)
+
+    # Combine the latest MAR files
+    combine_latest_mar(file_type='monthly')
+
+    # Update the database with the latest combined MAR files
+    update_db_with_latest_mar()
+
+    return True
+
 def crawl_latest_mar_file():
     '''
         Module crawls the latest MAR file from the website
@@ -117,36 +147,6 @@ def get_latest_mar_file_from_storage():
     # Sort by date and get the latest file
     latest_file = max(mar_files, key=lambda x: x[0])[1]
     return latest_file
-
-def update_mar_with_latest_file():
-    '''
-        Module updates the MAR with the latest file in storage
-        For storage location, see MAR_RAW_FILES_FOLDER_PATH_STR in constants.py
-    '''
-    # :::::: Crawl to find the latest MAR file and download it :::::: #
-    crawl_latest_mar_file()
-
-    # :::::: Get the latest MAR file :::::: #
-    latest_file_path = get_latest_mar_file_from_storage()
-
-    # :::::: Handle the MAR update :::::: #
-    handle_mar_update(latest_file_path)
-
-def handle_mar_update(file):
-    '''
-        Module handles the mar upload process.
-    '''
-    # Parse the MAR file into files for each tab
-    for tab in mar_tabs:
-        parse_mar_to_file(file, tab)
-
-    # Combine the latest MAR files
-    combine_latest_mar(file_type='monthly')
-
-    # Update the database with the latest combined MAR files
-    update_db_with_latest_mar()
-
-    return True
 
 def parse_mar_to_file(file, sheet_name):
     '''
@@ -292,8 +292,8 @@ def combine_latest_mar(file_type='monthly'):
         df_adv = pd.read_parquet(adv_file)
         df_volume = pd.read_parquet(volume_file)
         
-        # Rename volume column in ADV to avg_volume
-        df_adv = df_adv.rename(columns={'volume': 'avg_volume'})
+        # Rename volume column in ADV to adv
+        df_adv = df_adv.rename(columns={'volume': 'adv'})
         
         # Perform full outer join
         df_combined = pd.merge(
