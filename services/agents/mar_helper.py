@@ -79,7 +79,13 @@ def get_sql_examples() -> str:
     return f"""
 Example Queries:
 
-1. Get total volume for credit derivatives in August 2025:
+1. Get total volume for all products in August 2025:
+   SELECT SUM(volume) as total_volume
+   FROM {MAR_TABLE_PATH}
+   WHERE year = 2025 
+     AND month = 8;
+
+2. Get total volume for credit derivatives in August 2025:
    SELECT SUM(volume) as total_volume
    FROM {MAR_TABLE_PATH}
    WHERE year = 2025 
@@ -87,7 +93,7 @@ Example Queries:
      AND asset_class = 'credit'
      AND product_type = 'derivatives';
 
-2. Get monthly ADV trend for US ETFs in 2025:
+3. Get monthly ADV trend for US ETFs in 2025:
    SELECT year, month, AVG(adv) as average_daily_volume
    FROM {MAR_TABLE_PATH}
    WHERE year = 2025

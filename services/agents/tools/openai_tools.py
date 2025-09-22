@@ -89,8 +89,11 @@ def get_system_prompt(schema: Any, products: Dict[str, Any], sql_examples: str) 
     - Products by Category:
     {products_by_type_str}
 
-    {MAR_TABLE_PATH} Schema:
-    {schema}
+    Table Schema:
+    - Name: {schema.name}
+    - Description: {schema.description}
+    - Columns:
+      {json.dumps(schema.columns, indent=6)}
 
     SQL EXAMPLES:
     {sql_examples}
