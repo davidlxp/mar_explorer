@@ -26,10 +26,13 @@ def handle_user_query(user_query: str) -> AnswerPacket:
     print("\nQuery Breakdown:")
     print("---------------")
     for i, item in enumerate(breakdown_results, 1):
+        print('\n')
+        print(">>>>>>>>>>>>")
         print(f"task_id: {item.task_id}")
         print(f"task_to_do: {item.task_to_do}")
         print(f"reason:  {item.reason}")
         print(f"dependency_on: {item.dependency_on}")
+        print(">>>>>>>>>>>>")
     print("\n---------------")
     
     # Plan all tasks
