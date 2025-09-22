@@ -13,6 +13,9 @@ from services.agents.tools.openai_tools import get_query_analysis_tools, get_sys
 from services.agents.tools.query_processor import parse_openai_response
 from services.constants import MAR_TABLE_PATH
 
+from services.db import get_database
+db = get_database()
+
 
 class Intent(str, Enum):
     NUMERIC = "numeric"
@@ -55,7 +58,6 @@ class RetrievalResult:
     chunks: List[ContextChunk]
     confidence: float
     strategy: str
-
 
 def analyze_and_decompose(user_query: str) -> AnalysisResult:
     """
@@ -116,8 +118,6 @@ def handle_user_query(user_query: str) -> AnswerPacket:
             results.append(run_numeric_task(task))
         elif task.intent == Intent.CONTEXT:
             results.append(run_context_task(task))
-        elif task.intent == Intent.WEB:
-            results.append(run_web_task(task))  # Future extension
         else:
             return AnswerPacket(
                 text="Sorry, I can only help with MAR numeric or context queries.",
@@ -132,7 +132,7 @@ def run_numeric_task() -> SqlResult:
     Map helper name to SQL query, execute against Snowflake.
     Retry up to 3x if query fails.
     """
-    # TODO: implement using Snowflake connector
+    
     return SqlResult(rows=[], cols=[])
 
 def run_context_task() -> RetrievalResult:
