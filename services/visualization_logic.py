@@ -272,8 +272,15 @@ class DataFetcher:
         where_clause = " AND ".join(conditions) if conditions else "1=1"
         return where_clause, params
 
-    def get_dashboard_data(self) -> Dict[str, pd.DataFrame]:
+    def get_dashboard_data(self) -> Optional[Dict[str, pd.DataFrame]]:
         """Fetch dashboard data based on current filter state"""
+        # Check if any required filter is empty
+        state = self.filter_manager.state
+        if (not state.selected_product_types or 
+            not state.selected_years or 
+            not state.selected_months):
+            return None  # Return None to indicate no data should be shown
+            
         where_clause, params = self.build_where_clause()
         params_tuple = tuple(params) if params else None
 
@@ -403,6 +410,17 @@ class VolumeVisualizer:
     def get_dashboard_data(self) -> Dict[str, Any]:
         """Get dashboard data and create visualization"""
         data = self.data_fetcher.get_dashboard_data()
+        
+        # If any required filter is empty, return only filter state
+        if data is None:
+            return {
+                'figure': None,
+                'trend_data': None,
+                'asset_data': None,
+                'filter_state': self.get_filter_state()
+            }
+            
+        # Create visualization if we have data
         figure = self.chart_builder.create_dashboard_figure(
             data['trend_data'], 
             data['asset_data']

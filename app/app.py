@@ -230,7 +230,7 @@ with dashboard_container:
         dashboard_data = st.session_state.visualizer.get_dashboard_data()
         
         # Display the dashboard
-        if dashboard_data:
+        if dashboard_data and dashboard_data['figure'] is not None:
             st.plotly_chart(dashboard_data['figure'], use_container_width=True)
             
             # Optional: Display raw data
@@ -241,7 +241,7 @@ with dashboard_container:
                 with tab2:
                     st.dataframe(dashboard_data['asset_data'])
         else:
-            st.warning("No data available for the selected filters")
+            st.warning("No data to display. Please ensure you have selected at least one item for Product Type, Year, and Month filters.")
             
     except Exception as e:
         st.error("Error loading dashboard")
