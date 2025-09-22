@@ -3,97 +3,106 @@ mar_orchestrator.py
 High-level orchestrator for handling MAR queries with Snowflake + Pinecone.
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Tuple
 from services.ai_workflow.agents.query_breakdown import break_down_query
+from services.ai_workflow.agents.plan_query_action import plan_query_action
+from services.ai_workflow.agents.aggregator import aggregate_results
 from services.ai_workflow.data_model import (
     TodoIntent, BreakdownQueryResult, PlanningResult, SqlResult,
     AnswerPacket, ContextChunk, RetrievalResult
 )
-from services.ai_workflow.agents.plan_query_action import plan_query_action, plan_all_tasks
+from services.ai_workflow.utils.common_utils import (
+    execute_sql_query,
+    execute_vector_search
+)
 from services.constants import MAR_TABLE_PATH
-
 
 def handle_user_query(user_query: str) -> AnswerPacket:
     """
-    High-level entrypoint:
-    1. Break down query into sequential tasks
-    2. Analyze each task to determine intent and generate helper
-    3. Execute tasks in sequence
-    4. Compose final answer
+    High-level entrypoint for query processing:
+    1. Break down query into tasks
+    2. Process tasks one by one, with iterative refinement
+    3. Aggregate results into final answer
     """
-    # First, break down the query into sequential tasks
-    breakdown_results = break_down_query(user_query)
-    print("\nQuery Breakdown:")
-    print("---------------")
-    for i, item in enumerate(breakdown_results, 1):
-        print('\n')
-        print(">>>>>>>>>>>>")
-        print(f"task_id: {item.task_id}")
-        print(f"task_to_do: {item.task_to_do}")
-        print(f"reason:  {item.reason}")
-        print(f"dependency_on: {item.dependency_on}")
-        print(">>>>>>>>>>>>")
-    print("\n---------------")
+    # Track completed tasks and their results
+    completed_tasks: List[Dict[str, Any]] = []
+    completed_results: List[Dict[str, Any]] = []
     
-    # Plan all tasks
-    all_planned_results = plan_all_tasks(breakdown_results)
-    print("\nAll Planned Results:")
-    print("---------------")
-    for task_id in sorted(all_planned_results.keys()):
-        result = all_planned_results[task_id]
-        print('\n')
-        print(">>>>>>>>>>>>")
-        print(f"task_id: {result.task_id}")
-        print(">>>>>>>>>>>>")
-        print(f"dependency_on: {result.dependency_on}")
-        print(f"task_to_do: {result.task_to_do}")
-        print(f"todo_intent: {result.todo_intent}")
-        print(f"helper_for_action: {result.helper_for_action}")
-        print(f"confidence: {result.confidence}")
-        print(f"confidence_reason: {result.confidence_reason}")
-    print("\n---------------")
+    while True:
+        # Get next set of tasks
+        breakdown_results = break_down_query(
+            user_query,
+            completed_tasks=completed_tasks,
+            completed_results=completed_results
+        )
+        
+        # If no tasks returned, we're done
+        if not breakdown_results:
+            if not completed_tasks:
+                return AnswerPacket(
+                    text="Sorry, I couldn't figure out how to process your query.",
+                    citations=[],
+                    confidence=0.0
+                )
+            # Return aggregated results
+            return aggregate_results(user_query, completed_tasks, completed_results)
+            
+        # Get the task with minimum task_id
+        current_task = min(breakdown_results, key=lambda x: x.task_id)
+        
+        # Plan the current task
+        plan = plan_query_action(current_task)
+        
+        # Execute the task based on intent
+        result = execute_task(plan)
+        if not result:
+            return AnswerPacket(
+                text=f"Failed to execute task: {current_task.task_to_do}",
+                citations=[],
+                confidence=0.0
+            )
+            
+        # Store completed task and result
+        completed_tasks.append({
+            "task_id": current_task.task_id,
+            "task_to_do": current_task.task_to_do,
+            "reason": current_task.reason,
+            "todo_intent": plan.todo_intent.value
+        })
+        completed_results.append(result)
+        
+        # If this was the last task, aggregate and return
+        remaining_tasks = [t for t in breakdown_results if t.task_id != current_task.task_id]
+        if not remaining_tasks:
+            return aggregate_results(user_query, completed_tasks, completed_results)
+
+def execute_task(plan: PlanningResult) -> Optional[Dict[str, Any]]:
+    """
+    Execute a planned task based on its intent.
     
-    # # Execute tasks based on intent
-    # results = []
-    # for task_id in sorted(completed_tasks):
-    #     res = task_results[task_id]
-    #     if res.todo_intent == TodoIntent.NUMERIC:
-    #         results.append(run_numeric_task())
-    #     elif res.todo_intent == TodoIntent.CONTEXT:
-    #         results.append(run_context_task())
-    #     else:
-    #         return AnswerPacket(
-    #             text="Sorry, I can only help with MAR numeric or context queries.",
-    #             citations=[],
-    #             confidence=0.99,
-    #         )
-
-    # return compose_final_answer(user_query, results)
-
-
-def run_numeric_task() -> SqlResult:
+    Args:
+        plan: The planned task to execute
+        
+    Returns:
+        Task result or None if execution failed
     """
-    Map helper name to SQL query, execute against Snowflake.
-    Retry up to 3x if query fails.
-    """
-    
-    return SqlResult(rows=[], cols=[])
-
-def run_context_task() -> RetrievalResult:
-    """
-    Run Pinecone retrieval.
-    Currently semantic-only, but keep structure flexible for filter-first.
-    """
-    # TODO: implement Pinecone query
-    return RetrievalResult(chunks=[], confidence=0.0, strategy="semantic")
-
-def compose_final_answer(user_query: str, results: List[Any]) -> AnswerPacket:
-    """
-    Main AI agent fuses multiple results (SQL + Pinecone + Web) into natural language.
-    """
-    # TODO: Implement with LLM call
-    return AnswerPacket(
-        text="This is a placeholder answer.",
-        citations=[],
-        confidence=0.7
-    )
+    try:
+        if plan.todo_intent == TodoIntent.NUMERIC:
+            if not plan.helper_for_action:
+                return None
+            return execute_sql_query(plan.helper_for_action)
+            
+        elif plan.todo_intent == TodoIntent.CONTEXT:
+            if not plan.helper_for_action:
+                return None
+            return execute_vector_search(plan.helper_for_action)
+            
+        elif plan.todo_intent == TodoIntent.AGGREGATION:
+            # Aggregation tasks are handled by the aggregator agent
+            return {"aggregation_result": "Task requires aggregation"}
+            
+        return None
+        
+    except Exception as e:
+        print(f"Error executing task: {e}")
+        return None

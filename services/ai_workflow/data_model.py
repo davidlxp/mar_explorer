@@ -33,10 +33,9 @@ class PlanningResult:
     task_id: int
     task_to_do: str
     todo_intent: TodoIntent
+    helper_for_action: Optional[str] = None  # SQL query or vector search query or None
     confidence: float
     confidence_reason: str
-    helper_for_action: Optional[str] = None  # SQL query or vector search query or None
-    dependency_on: Optional[set] = None
 
 @dataclass
 class SqlResult:

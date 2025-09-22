@@ -60,14 +60,32 @@ def get_breakdown_tools() -> List[Dict[str, Any]]:
         }
     ]
 
-def get_breakdown_system_prompt() -> str:
-    """Get the system prompt for query breakdown."""
-    return """You are an expert at breaking down complex queries into sequential tasks.
+def get_breakdown_system_prompt(completed_tasks: List[Dict[str, Any]] = None, completed_results: List[Dict[str, Any]] = None) -> str:
+    """
+    Get the system prompt for query breakdown.
+    
+    Args:
+        completed_tasks: Optional list of tasks that have been completed
+        completed_results: Optional list of results from completed tasks
+    """
+    # Build completed tasks context if available
+    completed_context = ""
+    if completed_tasks and completed_results:
+        completed_context = "\nCompleted Tasks and Results:\n"
+        for task, result in zip(completed_tasks, completed_results):
+            completed_context += f"""
+                                Task {task['task_id']}: {task['task_to_do']}
+                                Result: {json.dumps(result, indent=2)}
+                                """
+        completed_context += "\nPlease consider these completed tasks and their results when breaking down remaining work."
+    
+    return f"""You are an expert at breaking down complex queries into sequential tasks.
     Your job is to analyze user queries and determine what tasks need to be done to answer them.
+    {completed_context}
 
     CRITICAL: Task Optimization Rules
     1. Smart Task Breakdown:
-       - Break down tasks when they involve different types of operations (SQL vs aggregation vs context)
+       - Break down tasks when they involve different types of operations (SQL vs context vs aggregation)
        - Break down when later tasks need to process results from earlier tasks
        Example: "Compare YoY ADV for cash products"
        → GOOD: Break into two tasks:
@@ -96,16 +114,12 @@ def get_breakdown_system_prompt() -> str:
     
     3. Dependency Management:
        - Each task must have a unique task_id (starting from 1)
-       - dependency_on must list all task_ids that must complete first
-       - NEVER create circular dependencies
-       - A task can depend on multiple parents
-       - Tasks with no dependencies should have empty dependency_on array
+       - The task with smaller task_id will be executed eariler than the task with larger task_id
        
     4. Task Structure:
        - task_id: Unique integer identifier
        - task: Clear description of what to do
        - reason: MUST explain why this can't be combined with other tasks
-       - dependency_on: Array of parent task_ids ([] if none)
        
     Example Good Breakdowns:
     
@@ -152,12 +166,18 @@ def get_breakdown_system_prompt() -> str:
     Tasks: Don't split into separate US/EU tasks - use a single SQL query with region IN ('us', 'eu')
     """
 
-def break_down_query(query: str) -> List[BreakdownQueryResult]:
+def break_down_query(
+    query: str,
+    completed_tasks: List[Dict[str, Any]] = None,
+    completed_results: List[Dict[str, Any]] = None
+) -> List[BreakdownQueryResult]:
     """
     Break down a user query into sequential tasks.
     
     Args:
         query: The user's query
+        completed_tasks: Optional list of tasks that have been completed
+        completed_results: Optional list of results from completed tasks
         
     Returns:
         List of tasks with their reasons, in execution order
@@ -165,10 +185,16 @@ def break_down_query(query: str) -> List[BreakdownQueryResult]:
     try:
         # Get tools and prompt
         tools = get_breakdown_tools()
-        system_prompt = get_breakdown_system_prompt()
+        system_prompt = get_breakdown_system_prompt(completed_tasks, completed_results)
+        
+        # Build user message with completed tasks context
+        user_message = query
+        if completed_tasks and completed_results:
+            user_message = f"""Original Query: {query}
+                            Please break down the remaining work needed, considering the tasks already completed."""
         
         # Call OpenAI
-        response = call_openai(system_prompt, query, tools)
+        response = call_openai(system_prompt, user_message, tools)
         
         # Parse response
         if not response.choices[0].message.tool_calls:
