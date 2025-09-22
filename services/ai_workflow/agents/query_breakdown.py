@@ -7,10 +7,10 @@ from typing import List, Dict, Any
 from openai import OpenAI
 from services.constants import MAR_ORCHESTRATOR_MODEL
 from services.ai_workflow.data_model import BreakdownQueryResult
+from services.ai_workflow.utils.openai_utils import call_openai
 
 import json
 
-client = OpenAI()
 model = MAR_ORCHESTRATOR_MODEL
 
 def get_breakdown_tools() -> List[Dict[str, Any]]:
@@ -168,15 +168,7 @@ def break_down_query(query: str) -> List[BreakdownQueryResult]:
         system_prompt = get_breakdown_system_prompt()
         
         # Call OpenAI
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": query}
-            ],
-            tools=tools,
-            tool_choice="auto"
-        )
+        response = call_openai(system_prompt, query, tools)
         
         # Parse response
         if not response.choices[0].message.tool_calls:
