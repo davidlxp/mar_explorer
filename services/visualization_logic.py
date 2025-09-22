@@ -9,12 +9,12 @@ from dataclasses import dataclass, field
 HIERARCHY_QUERY = """
 SELECT DISTINCT
     asset_class,
-    product,
     product_type,
+    product,
     year,
     month
 FROM mar_combined_m
-ORDER BY asset_class, product, product_type, year, month;
+ORDER BY asset_class, product_type, product, year, month;
 """
 
 TREND_QUERY = """
@@ -102,18 +102,18 @@ ORDER BY total_volume DESC;
 class FilterState:
     """Class to maintain filter state"""
     # Reference mappings (immutable after initialization)
-    asset_class_to_products: Dict[str, Set[str]] = field(default_factory=dict)
-    product_to_types: Dict[str, Set[str]] = field(default_factory=dict)
+    asset_class_to_product_types: Dict[str, Set[str]] = field(default_factory=dict)
+    product_type_to_products: Dict[str, Set[str]] = field(default_factory=dict)
     
     # Available items for selection
     available_asset_classes: Set[str] = field(default_factory=set)
-    available_products: Set[str] = field(default_factory=set)
     available_product_types: Set[str] = field(default_factory=set)
+    available_products: Set[str] = field(default_factory=set)
     
     # Currently selected items
     selected_asset_classes: Set[str] = field(default_factory=set)
-    selected_products: Set[str] = field(default_factory=set)
     selected_product_types: Set[str] = field(default_factory=set)
+    selected_products: Set[str] = field(default_factory=set)
     
     # Time filters reference sets (never change after initialization)
     available_years: Set[int] = field(default_factory=set)
@@ -138,18 +138,18 @@ class FilterStateManager:
         # Build immutable hierarchy mappings
         for _, row in hierarchy_data.iterrows():
             asset_class = row['ASSET_CLASS']
-            product = row['PRODUCT']
             product_type = row['PRODUCT_TYPE']
+            product = row['PRODUCT']
             
-            # Build asset_class to products mapping
-            if asset_class not in self.state.asset_class_to_products:
-                self.state.asset_class_to_products[asset_class] = set()
-            self.state.asset_class_to_products[asset_class].add(product)
+            # Build asset_class to product_types mapping
+            if asset_class not in self.state.asset_class_to_product_types:
+                self.state.asset_class_to_product_types[asset_class] = set()
+            self.state.asset_class_to_product_types[asset_class].add(product_type)
             
-            # Build product to product_types mapping
-            if product not in self.state.product_to_types:
-                self.state.product_to_types[product] = set()
-            self.state.product_to_types[product].add(product_type)
+            # Build product_type to products mapping
+            if product_type not in self.state.product_type_to_products:
+                self.state.product_type_to_products[product_type] = set()
+            self.state.product_type_to_products[product_type].add(product)
         
         # Initialize time filters with reference sets that never change
         self.state.available_years = set(hierarchy_data['YEAR'])
@@ -165,34 +165,34 @@ class FilterStateManager:
     def select_all(self):
         """Select all items in the hierarchy"""
         # Set all asset classes as available and selected
-        self.state.available_asset_classes = set(self.state.asset_class_to_products.keys())
+        self.state.available_asset_classes = set(self.state.asset_class_to_product_types.keys())
         self.state.selected_asset_classes = self.state.available_asset_classes.copy()
-        
-        # Set all products as available and selected
-        self.state.available_products = set()
-        for products in self.state.asset_class_to_products.values():
-            self.state.available_products.update(products)
-        self.state.selected_products = self.state.available_products.copy()
         
         # Set all product types as available and selected
         self.state.available_product_types = set()
-        for types in self.state.product_to_types.values():
-            self.state.available_product_types.update(types)
+        for product_types in self.state.asset_class_to_product_types.values():
+            self.state.available_product_types.update(product_types)
         self.state.selected_product_types = self.state.available_product_types.copy()
+        
+        # Set all products as available and selected
+        self.state.available_products = set()
+        for products in self.state.product_type_to_products.values():
+            self.state.available_products.update(products)
+        self.state.selected_products = self.state.available_products.copy()
     
-    def _get_available_products_from_asset_classes(self, asset_classes: Set[str]) -> Set[str]:
-        """Get all available products from a set of asset classes"""
-        available_products = set()
+    def _get_available_product_types_from_asset_classes(self, asset_classes: Set[str]) -> Set[str]:
+        """Get all available product types from a set of asset classes"""
+        available_product_types = set()
         for ac in asset_classes:
-            available_products.update(self.state.asset_class_to_products[ac])
-        return available_products
+            available_product_types.update(self.state.asset_class_to_product_types[ac])
+        return available_product_types
     
-    def _get_available_product_types_from_products(self, products: Set[str]) -> Set[str]:
-        """Get all available product types from a set of products"""
-        available_types = set()
-        for prod in products:
-            available_types.update(self.state.product_to_types[prod])
-        return available_types
+    def _get_available_products_from_product_types(self, product_types: Set[str]) -> Set[str]:
+        """Get all available products from a set of product types"""
+        available_products = set()
+        for pt in product_types:
+            available_products.update(self.state.product_type_to_products[pt])
+        return available_products
     
     def deselect_all_asset_classes(self):
         """Remove all asset classes and clear child filters"""
@@ -200,92 +200,92 @@ class FilterStateManager:
         self.state.selected_asset_classes.clear()
         
         # Clear both selected and available lists for children
+        self.state.selected_product_types.clear()
+        self.state.available_product_types.clear()
+        
         self.state.selected_products.clear()
         self.state.available_products.clear()
-        
-        self.state.selected_product_types.clear()
-        self.state.available_product_types.clear()
 
-    def deselect_all_products(self):
-        """Remove all products and clear child filters"""
-        # Clear product selected list (but keep available list unchanged)
+    def deselect_all_product_types(self):
+        """Remove all product types and clear child filters"""
+        # Clear product type selected list (but keep available list unchanged)
+        self.state.selected_product_types.clear()
+        
+        # Clear both selected and available lists for products
         self.state.selected_products.clear()
-        
-        # Clear both selected and available lists for product types
-        self.state.selected_product_types.clear()
-        self.state.available_product_types.clear()
+        self.state.available_products.clear()
 
-    def deselect_product_type(self, product_type: str):
-        """Simply remove a product type from selected list"""
-        if product_type in self.state.selected_product_types:
-            self.state.selected_product_types.remove(product_type)
-    
     def deselect_product(self, product: str):
-        """Remove a product and update product type lists"""
+        """Simply remove a product from selected list"""
         if product in self.state.selected_products:
-            # Remove the product
             self.state.selected_products.remove(product)
-            
-            # Get available product types from remaining selected products
-            available_types = self._get_available_product_types_from_products(
-                self.state.selected_products
-            )
-            
-            # Update available and selected product types
-            self.state.available_product_types = available_types
-            self.state.selected_product_types.intersection_update(available_types)
     
-    def deselect_asset_class(self, asset_class: str):
-        """Remove an asset class and update both product and product type lists"""
-        if asset_class in self.state.selected_asset_classes:
-            # Remove the asset class
-            self.state.selected_asset_classes.remove(asset_class)
+    def deselect_product_type(self, product_type: str):
+        """Remove a product type and update product lists"""
+        if product_type in self.state.selected_product_types:
+            # Remove the product type
+            self.state.selected_product_types.remove(product_type)
             
-            # Get available products from remaining asset classes
-            available_products = self._get_available_products_from_asset_classes(
-                self.state.selected_asset_classes
-            )
-            
-            # Get available product types from these products
-            available_types = self._get_available_product_types_from_products(
-                available_products
+            # Get available products from remaining selected product types
+            available_products = self._get_available_products_from_product_types(
+                self.state.selected_product_types
             )
             
             # Update available and selected products
             self.state.available_products = available_products
             self.state.selected_products.intersection_update(available_products)
+    
+    def deselect_asset_class(self, asset_class: str):
+        """Remove an asset class and update both product type and product lists"""
+        if asset_class in self.state.selected_asset_classes:
+            # Remove the asset class
+            self.state.selected_asset_classes.remove(asset_class)
+            
+            # Get available product types from remaining asset classes
+            available_product_types = self._get_available_product_types_from_asset_classes(
+                self.state.selected_asset_classes
+            )
+            
+            # Get available products from these product types
+            available_products = self._get_available_products_from_product_types(
+                available_product_types
+            )
             
             # Update available and selected product types
-            self.state.available_product_types = available_types
-            self.state.selected_product_types.intersection_update(available_types)
-    
-    def select_product_type(self, product_type: str):
-        """Add a product type to selected list if it's available"""
-        if product_type in self.state.available_product_types:
-            self.state.selected_product_types.add(product_type)
+            self.state.available_product_types = available_product_types
+            self.state.selected_product_types.intersection_update(available_product_types)
+            
+            # Update available and selected products
+            self.state.available_products = available_products
+            self.state.selected_products.intersection_update(available_products)
     
     def select_product(self, product: str):
-        """Add a product and its types if it's available"""
+        """Add a product to selected list if it's available"""
         if product in self.state.available_products:
             self.state.selected_products.add(product)
-            # Make its types available and selected
-            types = self.state.product_to_types[product]
-            self.state.available_product_types.update(types)
-            self.state.selected_product_types.update(types)
+    
+    def select_product_type(self, product_type: str):
+        """Add a product type and its products if it's available"""
+        if product_type in self.state.available_product_types:
+            self.state.selected_product_types.add(product_type)
+            # Make its products available and selected
+            products = self.state.product_type_to_products[product_type]
+            self.state.available_products.update(products)
+            self.state.selected_products.update(products)
     
     def select_asset_class(self, asset_class: str):
         """Add an asset class and its children if it's available"""
         if asset_class in self.state.available_asset_classes:
             self.state.selected_asset_classes.add(asset_class)
-            # Get and select all child products
-            products = self.state.asset_class_to_products[asset_class]
-            self.state.available_products.update(products)
-            self.state.selected_products.update(products)
-            # Get and select all grandchild product types
-            for product in products:
-                types = self.state.product_to_types[product]
-                self.state.available_product_types.update(types)
-                self.state.selected_product_types.update(types)
+            # Get and select all child product types
+            product_types = self.state.asset_class_to_product_types[asset_class]
+            self.state.available_product_types.update(product_types)
+            self.state.selected_product_types.update(product_types)
+            # Get and select all grandchild products
+            for product_type in product_types:
+                products = self.state.product_type_to_products[product_type]
+                self.state.available_products.update(products)
+                self.state.selected_products.update(products)
 
 class DataFetcher:
     """Handles all database interactions"""

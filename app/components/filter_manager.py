@@ -59,14 +59,14 @@ class FilterManager:
             visualizer.update_time_filters(years=set(new_years))
         
         with filter_col2:
-            # Product filter
-            new_products = st.multiselect(
-                "Product",
-                options=list(filter_state['available']['products']),
-                default=list(filter_state['selected']['products'])
+            # Product Type filter
+            new_product_types = st.multiselect(
+                "Product Type",
+                options=list(filter_state['available']['product_types']),
+                default=list(filter_state['selected']['product_types'])
             )
             self.handle_hierarchical_filter_change(
-                new_products, filter_state, 'product', visualizer
+                new_product_types, filter_state, 'product_type', visualizer
             )
             
             # Month filter (independent)
@@ -78,12 +78,12 @@ class FilterManager:
             visualizer.update_time_filters(months=set(new_months))
         
         with filter_col3:
-            # Product Type filter
-            new_product_types = st.multiselect(
-                "Product Type",
-                options=list(filter_state['available']['product_types']),
-                default=list(filter_state['selected']['product_types'])
+            # Product filter
+            new_products = st.multiselect(
+                "Product",
+                options=list(filter_state['available']['products']),
+                default=list(filter_state['selected']['products'])
             )
             self.handle_hierarchical_filter_change(
-                new_product_types, filter_state, 'product_type', visualizer
+                new_products, filter_state, 'product', visualizer
             )
