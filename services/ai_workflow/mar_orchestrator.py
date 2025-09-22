@@ -38,7 +38,10 @@ def handle_user_query(user_query: str) -> AnswerPacket:
     print("---------------")
     for task_id in sorted(all_planned_results.keys()):
         result = all_planned_results[task_id]
+        print('\n')
+        print(">>>>>>>>>>>>")
         print(f"task_id: {result.task_id}")
+        print(">>>>>>>>>>>>")
         print(f"dependency_on: {result.dependency_on}")
         print(f"task_to_do: {result.task_to_do}")
         print(f"todo_intent: {result.todo_intent}")
