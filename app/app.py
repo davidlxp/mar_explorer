@@ -96,6 +96,10 @@ if 'mar_status' not in st.session_state:
     st.session_state.mar_status = None
 if 'show_logs' not in st.session_state:
     st.session_state.show_logs = False
+if 'filter_state' not in st.session_state:
+    st.session_state.filter_state = None
+if 'visualizer' not in st.session_state:
+    st.session_state.visualizer = None
 
 # Sidebar for MAR updates and tools
 with st.sidebar:
@@ -130,62 +134,100 @@ with dashboard_container:
     from services.visualization_logic import VolumeVisualizer
     import plotly.io as pio
     
-    # Initialize visualizer
-    visualizer = VolumeVisualizer()
+    # Initialize visualizer if not already initialized
+    if not st.session_state.visualizer:
+        st.session_state.visualizer = VolumeVisualizer()
     
     try:
-        # Get filter options
-        filter_options = visualizer.get_filter_options()
+        # Get current filter state
+        if not st.session_state.filter_state:
+            st.session_state.filter_state = st.session_state.visualizer.get_filter_state()
+        
+        filter_state = st.session_state.filter_state
         
         # Create filter columns
         filter_col1, filter_col2, filter_col3 = st.columns(3)
         
         with filter_col1:
             # Asset Class filter
-            selected_asset_classes = st.multiselect(
+            new_asset_classes = st.multiselect(
                 "Asset Class",
-                options=filter_options['asset_classes'],
-                default=filter_options['asset_classes']
+                options=list(filter_state['available']['asset_classes']),
+                default=list(filter_state['selected']['asset_classes'])
             )
             
-            # Year filter
-            selected_years = st.multiselect(
+            # Handle asset class changes
+            if not new_asset_classes:  # All items removed
+                st.session_state.visualizer.deselect_filter('asset_class')
+            else:
+                added_asset_classes = set(new_asset_classes) - filter_state['selected']['asset_classes']
+                removed_asset_classes = filter_state['selected']['asset_classes'] - set(new_asset_classes)
+                
+                for asset_class in added_asset_classes:
+                    st.session_state.visualizer.select_filter('asset_class', asset_class)
+                for asset_class in removed_asset_classes:
+                    st.session_state.visualizer.deselect_filter('asset_class', asset_class)
+            
+            # Year filter (independent)
+            new_years = st.multiselect(
                 "Year",
-                options=filter_options['years'],
-                default=filter_options['years']
+                options=sorted(list(filter_state['selected']['years'])),
+                default=sorted(list(filter_state['selected']['years']))
             )
+            # Update selected years
+            st.session_state.visualizer.update_time_filters(years=set(new_years))
         
         with filter_col2:
             # Product filter
-            selected_products = st.multiselect(
+            new_products = st.multiselect(
                 "Product",
-                options=filter_options['products'],
-                default=filter_options['products']
+                options=list(filter_state['available']['products']),
+                default=list(filter_state['selected']['products'])
             )
             
-            # Month filter
-            selected_months = st.multiselect(
+            # Handle product changes
+            if not new_products:  # All items removed
+                st.session_state.visualizer.deselect_filter('product')
+            else:
+                added_products = set(new_products) - filter_state['selected']['products']
+                removed_products = filter_state['selected']['products'] - set(new_products)
+                
+                for product in added_products:
+                    st.session_state.visualizer.select_filter('product', product)
+                for product in removed_products:
+                    st.session_state.visualizer.deselect_filter('product', product)
+            
+            # Month filter (independent)
+            new_months = st.multiselect(
                 "Month",
-                options=filter_options['months'],
-                default=filter_options['months']
+                options=sorted(list(filter_state['selected']['months'])),
+                default=sorted(list(filter_state['selected']['months']))
             )
+            # Update selected months
+            st.session_state.visualizer.update_time_filters(months=set(new_months))
         
         with filter_col3:
             # Product Type filter
-            selected_product_types = st.multiselect(
+            new_product_types = st.multiselect(
                 "Product Type",
-                options=filter_options['product_types'],
-                default=filter_options['product_types']
+                options=list(filter_state['available']['product_types']),
+                default=list(filter_state['selected']['product_types'])
             )
+            
+            # Handle product type changes
+            added_product_types = set(new_product_types) - filter_state['selected']['product_types']
+            removed_product_types = filter_state['selected']['product_types'] - set(new_product_types)
+            
+            for product_type in added_product_types:
+                st.session_state.visualizer.select_filter('product_type', product_type)
+            for product_type in removed_product_types:
+                st.session_state.visualizer.deselect_filter('product_type', product_type)
         
-        # Get dashboard data based on filters
-        dashboard_data = visualizer.get_dashboard_data(
-            asset_classes=selected_asset_classes if selected_asset_classes else None,
-            products=selected_products if selected_products else None,
-            product_types=selected_product_types if selected_product_types else None,
-            years=selected_years if selected_years else None,
-            months=selected_months if selected_months else None
-        )
+        # Update filter state after all changes
+        st.session_state.filter_state = st.session_state.visualizer.get_filter_state()
+        
+        # Get dashboard data
+        dashboard_data = st.session_state.visualizer.get_dashboard_data()
         
         # Display the dashboard
         if dashboard_data:
