@@ -80,9 +80,10 @@ def handle_user_query(user_query: str) -> AnswerPacket:
     print("\nQuery Breakdown:")
     print("---------------")
     for i, item in enumerate(breakdown_results, 1):
-        print(f"\nTask {i}:")
+        print(f"task_id: {item.task_id}")
         print(f"task_to_do: {item.task_to_do}")
         print(f"reason:  {item.reason}")
+        print(f"dependency_on: {item.dependency_on}")
     print("\n---------------")
     
     # Plan all tasks
@@ -140,16 +141,13 @@ def plan_all_tasks(breakdown_results: List[BreakdownQueryResult]) -> Dict[int, P
             if task.dependency_on and not task.dependency_on.issubset(all_planned_results.keys()):
                 continue
             
-            print(f"\nExecuting Task {task.task_id}:")
-            print("---------------")
-            print(f"Task: {task.task_to_do}")
-            print(f"Reason: {task.reason}")
+            print(f"\Planning Task {task.task_id}:")
             if task.dependency_on:
                 print(f"Using results from Task {task.dependency_on}")
             
             # Execute the task
             res = plan_query_action(task.task_to_do)
-            print("\nTask Analysis:")
+            print("\Planned Task:")
             print("---------------")
             print(f"task_to_do: {res.task_to_do}")
             print(f"todo_intent: {res.todo_intent}")

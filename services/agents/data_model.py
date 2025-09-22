@@ -23,6 +23,8 @@ class BreakdownQueryResult:
 @dataclass
 class PlanningResult:
     """Result of analyzing a single task."""
+    task_id: int
+    dependency_on: Optional[set] = None
     task_to_do: str
     todo_intent: TodoIntent
     helper_for_action: Optional[str]  # SQL query or vector search query or None
