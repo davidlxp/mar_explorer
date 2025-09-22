@@ -71,12 +71,25 @@ def get_system_prompt(schema: Any, products: Dict[str, Any], sql_examples: str) 
     products_by_type_str = json.dumps(products["products_by_type"], indent=2)
 
     return f"""You are an analyst expert for financial MAR data.
-    When receiving a query from user, break it down into structured tasks as needed.
+    When receiving a query from user, carefully analyze it and break it down into structured tasks as needed.
     
     Task types:
     - 'numeric' → It means to answer user's query, you need to need to generate a SQL query to execute against the Snowflake database.
     - 'context' → It means to answer user's query, you need to need to generate a natural language query to search financial press releases related content.
     - 'irrelevant' → It means the query is outside the scope of the MAR data.
+    
+    IMPORTANT: Task Breakdown Rules
+    1. If a query contains multiple questions or comparisons, create separate tasks for each one.
+       Example: "What is ADV for cash products and credit products?"
+       → Create two numeric tasks:
+         - One for cash products ADV
+         - One for credit products ADV
+    
+    2. If a query requires both data and context, create multiple tasks with different intents.
+       Example: "What is the ADV trend and why did it change?"
+       → Create two tasks:
+         - numeric task for ADV data
+         - context task for trend explanation
     
     For numeric tasks:
     1. You need to generate a SQL query and populate the helper_for_action field of functional call.

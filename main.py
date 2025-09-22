@@ -55,8 +55,10 @@ if __name__ == "__main__":
     # the_query = "What is the total trading volume of Tradeweb in August 2025?"
     # the_query = "Why did Aug 2025 differ from Aug 2026?"
     # the_query = "What is ADV for Credit in Aug 2025?"
-    the_query = "What is ADV for cash productsin Aug 2025?"
-    tasks = mar_orchestrator.analyze_and_decompose(user_query=the_query)
+    # the_query = "What is ADV for cash productsin Aug 2025?"
+
+    the_query = "What is ADV for cash productsin Aug 2025? And how about for credit?"
+    tasks = mar_orchestrator.handle_user_query(user_query=the_query)
     print(tasks)
 
     pass

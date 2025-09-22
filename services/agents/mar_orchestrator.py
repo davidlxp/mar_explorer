@@ -11,6 +11,7 @@ from typing import List, Dict, Any
 from services.agents.mar_helper import get_mar_table_schema, load_available_products, get_sql_examples
 from services.agents.tools.openai_tools import get_query_analysis_tools, get_system_prompt, call_openai
 from services.agents.tools.query_processor import parse_openai_response
+from services.agents.tools.query_breakdown import break_down_query
 from services.constants import MAR_TABLE_PATH
 
 from services.db import get_database
@@ -114,30 +115,46 @@ def analyze_and_decompose(user_query: str) -> AnalysisResult:
             )
         ])
 
+def handle_user_query(user_query: str) -> str:
+
+    pass
+
 def handle_user_query(user_query: str) -> AnswerPacket:
     """
     High-level entrypoint:
-    1. Analyze & decompose query → tasks
-    2. Execute tasks (SQL, Pinecone, Web)
-    3. Validate results
+    1. Break down query into sequential tasks
+    2. Analyze each task to determine intent and generate helper
+    3. Execute tasks in sequence
     4. Compose final answer
     """
-    tasks = analyze_and_decompose(user_query)
+    # First, break down the query into sequential tasks
+    task_breakdown = break_down_query(user_query)
+    print("\nQuery Breakdown:")
+    print("---------------")
+    for i, task in enumerate(task_breakdown, 1):
+        print(f"\nTask {i}:")
+        print(f"What: {task['task']}")
+        print(f"Why:  {task['reason']}")
+    print("\n---------------")
+    
+    # Now analyze each task to determine intent and generate helper
+    # tasks = analyze_and_decompose(user_query)
+    
+    # # Execute tasks and compose answer
+    # results = []
+    # for task in tasks:
+    #     if task.intent == Intent.NUMERIC:
+    #         results.append(run_numeric_task(task))
+    #     elif task.intent == Intent.CONTEXT:
+    #         results.append(run_context_task(task))
+    #     else:
+    #         return AnswerPacket(
+    #             text="Sorry, I can only help with MAR numeric or context queries.",
+    #             citations=[],
+    #             confidence=0.99,
+    #         )
 
-    results = []
-    for task in tasks:
-        if task.intent == Intent.NUMERIC:
-            results.append(run_numeric_task(task))
-        elif task.intent == Intent.CONTEXT:
-            results.append(run_context_task(task))
-        else:
-            return AnswerPacket(
-                text="Sorry, I can only help with MAR numeric or context queries.",
-                citations=[],
-                confidence=0.99,
-            )
-
-    return compose_final_answer(user_query, tasks, results)
+    # return compose_final_answer(user_query, tasks, results)
 
 def run_numeric_task() -> SqlResult:
     """
