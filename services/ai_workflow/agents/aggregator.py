@@ -125,7 +125,7 @@ def get_aggregator_system_prompt() -> str:
 
 def aggregate_results(
     user_query: str,
-    completed_tasks: List[BreakdownQueryResult],
+    completed_tasks: List[Dict[str, Any]],
     task_results: Dict[int, Any]  # Maps task_id to SQL/Vector/Aggregation results
 ) -> AnswerPacket:
     """
@@ -142,40 +142,33 @@ def aggregate_results(
     try:
         # Format task results for the prompt
         task_context = []
-        for task in completed_tasks:
-            result = task_results[task.task_id]
-            
-            # Format based on result type
-            if isinstance(result, SqlResult):
-                task_context.append(f"""
-Task {task.task_id}: {task.task_to_do}
-Type: SQL Query
-Results: {json.dumps(result.rows, indent=2)}
-Columns: {result.cols}
-""")
-            elif isinstance(result, RetrievalResult):
-                task_context.append(f"""
-Task {task.task_id}: {task.task_to_do}
-Type: Vector Search
-Results: {json.dumps([{
-    'text': chunk.text,
-    'score': chunk.score
-} for chunk in result.chunks], indent=2)}
-""")
-            else:  # Generic result
-                task_context.append(f"""
-Task {task.task_id}: {task.task_to_do}
-Type: Other
-Results: {str(result)}
-""")
+
+        print("\n\n")
+        print("--------------------------------")
+        print("\n")
+        print(f"Completed tasks number: {len(completed_tasks)}")
+        print(f"Task result number: {len(task_results)}")
+        print("\n")
+        print("--------------------------------")
+        print("\n\n")
+
+        for i in range(len(completed_tasks)):
+            task = completed_tasks[i]
+
+            task_id = task["task_id"]
+            task_to_do = task["task_to_do"]
+            result = task_results[i]
+
+            curr_context = f""" Task {task_id}: The goal is to {str(task_to_do)}. The result is {str(result)}."""
+            task_context.append(curr_context)
 
         # Build user message
         user_message = f"""Original Query: {user_query}
 
-Completed Tasks and Results:
-{''.join(task_context)}
+                    Completed Tasks and Results:
+                    {task_context}
 
-Please aggregate these results into a clear, concise answer that directly addresses the original query."""
+                    Please aggregate these results into a clear, concise answer that directly addresses the original query."""
 
         # Get tools and prompt
         tools = get_aggregator_tools()
@@ -202,7 +195,7 @@ Please aggregate these results into a clear, concise answer that directly addres
         )
         
     except Exception as e:
-        print(f"Error aggregating results: {e.with_traceback}")
+        print(f"Error aggregating results: {str(e)}")
         return AnswerPacket(
             text=f"Error aggregating results: {str(e)}",
             citations=[],

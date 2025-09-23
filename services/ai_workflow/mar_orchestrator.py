@@ -145,7 +145,15 @@ def handle_user_query(user_query: str) -> AnswerPacket:
         # If this was the last task, aggregate and return
         remaining_tasks = [t for t in breakdown_results if t.task_id != current_task.task_id]
         if not remaining_tasks:
-            return aggregate_results(user_query, completed_tasks, completed_results)
+            # Convert completed tasks back to BreakdownQueryResult objects
+            tasks_as_objects = [
+                BreakdownQueryResult(
+                    task_id=task["task_id"],
+                    task_to_do=task["task_to_do"],
+                    reason=task["reason"]
+                ) for task in completed_tasks
+            ]
+            return aggregate_results(user_query, tasks_as_objects, completed_results)
         
         max_try_times -= 1
 
