@@ -76,15 +76,7 @@ def summarize_parent_plans(task: BreakdownQueryResult, parent_plans: Dict[int, P
             Task {ancestor_id}: {plan.todo_intent} - {plan.helper_for_action}
         
         """)
-
-    print("\n\n")
-    print("--------------------------------")
-    print("\n kkkkkkkkkkk")
-    print(ancestor_plans)
-    print("\n")
-    print("--------------------------------")
-    print("\n\n")
-    
+        
     # Get summary from AI
     system_prompt = get_summarize_system_prompt()
     
