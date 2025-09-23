@@ -159,7 +159,7 @@ def aggregate_results(
             task_to_do = task["task_to_do"]
             result = task_results[i]
 
-            curr_context = f""" Task {task_id}: The goal is to {str(task_to_do)}. The result is {str(result)}."""
+            curr_context = f""" Task {task_id}: The goal is to {str(task_to_do)}. The result is {str(result)}. And the reference is {str(task["reference"])}.   """
             task_context.append(curr_context)
 
         # Build user message
@@ -168,7 +168,8 @@ def aggregate_results(
                     Completed Tasks and Results:
                     {task_context}
 
-                    Please aggregate these results into a clear, concise answer that directly addresses the original query."""
+                    Please aggregate these results into a clear, concise answer that directly addresses the original query.
+                    If you see the system prompt metioned the reference, you should use those to populate the answer."""
 
         # Get tools and prompt
         tools = get_aggregator_tools()
