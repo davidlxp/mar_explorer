@@ -120,8 +120,19 @@ def handle_user_query(user_query: str) -> AnswerPacket:
             "task_id": current_task.task_id,
             "task_to_do": current_task.task_to_do,
             "reason": current_task.reason,
-            "todo_intent": plan.todo_intent.value
+            "todo_intent": plan.todo_intent.value,
+            "reference": ""
         })
+
+        # If its a numeric task, add the reference to the completed tasks
+        if plan.todo_intent == TodoIntent.NUMERIC:
+            completed_tasks[-1]["reference"] = plan.helper_for_action
+            
+        # elif plan.todo_intent == TodoIntent.CONTEXT:
+        #     completed_tasks[-1]["reference"] = plan.helper_for_action
+        # elif plan.todo_intent == TodoIntent.AGGREGATION:
+        #     completed_tasks[-1]["reference"] = ""
+
         completed_results.append(result)
 
         print("\n\n")
