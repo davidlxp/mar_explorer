@@ -125,6 +125,31 @@ Accuracy is maintained through multiple layers:
    pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz
    ```
 
+### Environment Configuration
+
+Create a `.env` file in the root directory with the following variables:
+
+```env
+# OpenAI Configuration
+OPENAI_API_KEY=your_openai_api_key
+
+# Pinecone Configuration
+PINECONE_API_KEY=your_pinecone_api_key
+PINECONE_ENV=your_pinecone_environment
+INDEX_NAME=pr-index
+PINECONE_NAMESPACE=tradeweb-namespace
+
+# Snowflake Configuration
+SNOWFLAKE_USER=your_snowflake_username
+SNOWFLAKE_PASSWORD=your_snowflake_password
+SNOEFLAKE_ACCOUNT=your_snowflake_account
+SNOWFLAKE_WAREHOUSE=your_snowflake_warehouse
+```
+
+Make sure to replace all placeholder values (e.g., `your_openai_api_key`) with your actual API keys and configuration values.
+
+**Note**: Never commit the `.env` file to version control. The repository's `.gitignore` should include `.env` to prevent accidental commits of sensitive information.
+
 ## License
 
 [License information to be added]
