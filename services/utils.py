@@ -76,6 +76,10 @@ def save_meta_file(meta_data: dict, org_file_dir: str, org_file_name: str):
         org_file_dir: The directory of the original file
         org_file_name: The name of the original file
     '''
+    # Remove if the orignal file has any suffix using Path
+    org_file_name = Path(org_file_name).with_suffix("")
+
+    # Save the meta data
     os.makedirs(org_file_dir, exist_ok=True)
     with open(f'{org_file_dir}/{org_file_name}-meta.json', 'w') as f:
         json.dump(meta_data, f)

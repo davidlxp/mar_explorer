@@ -112,6 +112,17 @@ def crawl_latest_mar_file():
     # Download the file
     crawler.download_file(mar_href, MAR_RAW_FILES_FOLDER_PATH_STR, mar_file_name)
 
+    # :::::: Save the Meta Data :::::: #
+    meta_data = {
+        'url': mar_href,
+        'file_name': mar_file_name,
+        'file_type': 'mar',
+        'year': year,
+        'month': month,
+        'updated_at': pd.Timestamp.now().isoformat()
+    }
+    utils.save_meta_file(meta_data, MAR_RAW_FILES_FOLDER_PATH_STR, mar_file_name)
+
 def get_latest_mar_file_from_storage():
     """
     Find the latest MAR file in the raw files folder.
