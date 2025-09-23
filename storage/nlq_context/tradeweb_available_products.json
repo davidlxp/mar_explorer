@@ -1,0 +1,112 @@
+[
+  {
+    "ASSET_CLASS": "credit",
+    "PRODUCT_TYPE": "cash",
+    "PRODUCT": "chinese bonds"
+  },
+  {
+    "ASSET_CLASS": "credit",
+    "PRODUCT_TYPE": "cash",
+    "PRODUCT": "us high yield - fully electronic"
+  },
+  {
+    "ASSET_CLASS": "equities",
+    "PRODUCT_TYPE": "derivatives",
+    "PRODUCT": "futures"
+  },
+  {
+    "ASSET_CLASS": "rates",
+    "PRODUCT_TYPE": "derivatives",
+    "PRODUCT": "futures"
+  },
+  {
+    "ASSET_CLASS": "rates",
+    "PRODUCT_TYPE": "derivatives",
+    "PRODUCT": "swaps/swaptions \u2265 1y"
+  },
+  {
+    "ASSET_CLASS": "credit",
+    "PRODUCT_TYPE": "cash",
+    "PRODUCT": "municipal bonds"
+  },
+  {
+    "ASSET_CLASS": "equities",
+    "PRODUCT_TYPE": "cash",
+    "PRODUCT": "us etfs"
+  },
+  {
+    "ASSET_CLASS": "equities",
+    "PRODUCT_TYPE": "derivatives",
+    "PRODUCT": "convertibles/swaps/options"
+  },
+  {
+    "ASSET_CLASS": "rates",
+    "PRODUCT_TYPE": "cash",
+    "PRODUCT": "other government bonds"
+  },
+  {
+    "ASSET_CLASS": "rates",
+    "PRODUCT_TYPE": "cash",
+    "PRODUCT": "european government bonds"
+  },
+  {
+    "ASSET_CLASS": "credit",
+    "PRODUCT_TYPE": "cash",
+    "PRODUCT": "us high yield - electronically processed"
+  },
+  {
+    "ASSET_CLASS": "equities",
+    "PRODUCT_TYPE": "cash",
+    "PRODUCT": "european etfs"
+  },
+  {
+    "ASSET_CLASS": "rates",
+    "PRODUCT_TYPE": "cash",
+    "PRODUCT": "us government bonds"
+  },
+  {
+    "ASSET_CLASS": "credit",
+    "PRODUCT_TYPE": "cash",
+    "PRODUCT": "us high grade - fully electronic"
+  },
+  {
+    "ASSET_CLASS": "credit",
+    "PRODUCT_TYPE": "cash",
+    "PRODUCT": "us high grade - electronically processed"
+  },
+  {
+    "ASSET_CLASS": "credit",
+    "PRODUCT_TYPE": "derivatives",
+    "PRODUCT": "swaps"
+  },
+  {
+    "ASSET_CLASS": "money markets",
+    "PRODUCT_TYPE": "cash",
+    "PRODUCT": "other money markets"
+  },
+  {
+    "ASSET_CLASS": "money markets",
+    "PRODUCT_TYPE": "cash",
+    "PRODUCT": "repurchase agreements"
+  },
+  {
+    "ASSET_CLASS": "rates",
+    "PRODUCT_TYPE": "cash",
+    "PRODUCT": "mortgages"
+  },
+  {
+    "ASSET_CLASS": "rates",
+    "PRODUCT_TYPE": "derivatives",
+    "PRODUCT": "swaps/swaptions < 1y"
+  },
+  {
+    "ASSET_CLASS": "credit",
+    "PRODUCT_TYPE": "cash",
+    "PRODUCT": "european credit"
+  },
+  {
+    "ASSET_CLASS": "credit",
+    "PRODUCT_TYPE": "cash",
+    "PRODUCT": "other credit bonds"
+  }
+]
