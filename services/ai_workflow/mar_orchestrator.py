@@ -50,14 +50,14 @@ def handle_user_query(user_query: str) -> AnswerPacket:
             completed_results=completed_results
         )
 
-        print("\n\n")
-        print("--------------------------------")
-        print("\n")
-        print("breakdown_results")
-        print(breakdown_results)
-        print("\n")
-        print("--------------------------------")
-        print("\n\n")
+        # print("\n\n")
+        # print("--------------------------------")
+        # print("\n")
+        # print("breakdown_results")
+        # print(breakdown_results)
+        # print("\n")
+        # print("--------------------------------")
+        # print("\n\n")
         
         # If no tasks returned, we're done
         if not breakdown_results:
@@ -73,40 +73,38 @@ def handle_user_query(user_query: str) -> AnswerPacket:
         # Get the task with minimum task_id
         current_task = min(breakdown_results, key=lambda x: x.task_id)
 
-        print("\n\n")
-        print("--------------------------------")
-        print("\n")
-        print("current_task")
-        print(current_task)
-        print("\n")
-        print("--------------------------------")
-        print("\n\n")
-
-        
+        # print("\n\n")
+        # print("--------------------------------")
+        # print("\n")
+        # print("current_task")
+        # print(current_task)
+        # print("\n")
+        # print("--------------------------------")
+        # print("\n\n")
         
         # Plan the current task
         plan = plan_query_action(current_task)
 
-        print("\n\n")
-        print("--------------------------------")
-        print("\n")
-        print("Plan the current task")
-        print(plan)
-        print("\n")
-        print("--------------------------------")
-        print("\n\n")
+        # print("\n\n")
+        # print("--------------------------------")
+        # print("\n")
+        # print("Plan the current task")
+        # print(plan)
+        # print("\n")
+        # print("--------------------------------")
+        # print("\n\n")
         
         # Execute the task based on intent
         result = execute_task(plan)
 
-        print("\n\n")
-        print("--------------------------------")
-        print("\n")
-        print("result")
-        print(result)
-        print("\n")
-        print("--------------------------------")
-        print("\n\n")
+        # print("\n\n")
+        # print("--------------------------------")
+        # print("\n")
+        # print("result")
+        # print(result)
+        # print("\n")
+        # print("--------------------------------")
+        # print("\n\n")
 
         if not result:
             return AnswerPacket(
@@ -124,16 +122,32 @@ def handle_user_query(user_query: str) -> AnswerPacket:
             "reference": ""
         })
 
-        # If its a numeric task, add the reference to the completed tasks
-        if plan.todo_intent == TodoIntent.NUMERIC:
-            completed_tasks[-1]["reference"] = plan.helper_for_action
-            
-        # elif plan.todo_intent == TodoIntent.CONTEXT:
-        #     completed_tasks[-1]["reference"] = plan.helper_for_action
-        # elif plan.todo_intent == TodoIntent.AGGREGATION:
-        #     completed_tasks[-1]["reference"] = ""
+        # :::::: If its a numeric task, add the reference to the completed tasks :::::: #
 
-        completed_results.append(result)
+        if plan.todo_intent == TodoIntent.NUMERIC:
+
+            # Add the SQL query as the reference
+            completed_tasks[-1]["reference"] = plan.helper_for_action
+
+            completed_results.append(result)
+
+        elif plan.todo_intent == TodoIntent.CONTEXT:
+
+            # Get details from the Vector Search Result
+            ref_report_name = result.result.hits[0].fields['report_name']
+            ref_url = result.result.hits[0].fields['url']
+            ref_text = result.result.hits[0].fields['text']
+
+            # Add the report name and url as the reference
+            completed_tasks[-1]["reference"] = f"{ref_report_name}, {ref_url}"
+
+            # Add the report name and text as the task's result
+            completed_results.append(f"{ref_report_name}, {ref_text}")
+
+        elif plan.todo_intent == TodoIntent.AGGREGATION:
+            completed_tasks[-1]["reference"] = ""
+            completed_results.append(result)
+
 
         print("\n\n")
         print("--------------------------------")

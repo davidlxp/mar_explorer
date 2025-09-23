@@ -212,7 +212,7 @@ def break_down_query(
         if not response.choices[0].message.tool_calls:
             return [BreakdownQueryResult(
                 task_id=1,
-                task_to_do="Can't figure out how to break down the query.",
+                task_to_do="Maybe your question is not related to MAR trading volumes or press releases? I wasn’t able to identify clear tasks to break down. Please provide more details so I can better assist you. :)",
                 reason="Just can't figure it out."
             )]
 
