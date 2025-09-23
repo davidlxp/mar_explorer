@@ -123,6 +123,14 @@ def crawl_latest_mar_file():
     }
     utils.save_meta_file(meta_data, MAR_RAW_FILES_FOLDER_PATH_STR, mar_file_name)
 
+def get_latest_mar_meta_from_storage():
+    '''
+        Module gets the latest MAR meta data from the storage.
+    '''
+    # Get the latest MAR file
+    latest_mar_file = get_latest_mar_file_from_storage()
+    return utils.get_meta_file(latest_mar_file)
+
 def get_latest_mar_file_from_storage():
     """
     Find the latest MAR file in the raw files folder.

@@ -15,7 +15,8 @@ import services.crawler as crawler
 # from services.constants import *
 # from services.vectorstores import pinecone_store
 import services.ai_workflow.mar_orchestrator as mar_orchestrator
-from services.ai_workflow.utils.common_utils import load_available_products, get_mar_table_schema, execute_sql_query, execute_vector_query
+# from services.ai_workflow.utils.common_utils import load_available_products, get_mar_table_schema, execute_sql_query, execute_vector_query
+import services.task_handle_mar as task_handle_mar
 
 if __name__ == "__main__":
 
@@ -62,13 +63,13 @@ if __name__ == "__main__":
 
     # the_query = "YoY comparison of ADV for cash products for August, comparing 2025 to 2024"
 
-    # the_query = "US Government bond decline reason in August 2025?"
-    # tasks = mar_orchestrator.handle_user_query(user_query=the_query)
-    # print(tasks)
-
-    # the_query = "Hi!"
+    the_query = "US Government bond decline reason in August 2025?"
     tasks = mar_orchestrator.handle_user_query(user_query=the_query)
     print(tasks)
+
+    # the_query = "Hi!"
+    # tasks = mar_orchestrator.handle_user_query(user_query=the_query)
+    # print(tasks)
 
 
     # info = submit_sql_query("SELECT * FROM mar_combined_m LIMIT 10")
