@@ -169,6 +169,9 @@ def aggregate_results(
                     {task_context}
 
                     Please aggregate these results into a clear, concise answer that directly addresses the original query.
+                    The key is making the response clear, concise andsuitable for finance professionals who may not have a technical background.
+                    The goal is to make the answer immediately understandable and useful to someone in a finance department.
+
                     If you see the system prompt metioned the reference, you should use those to populate the answer."""
 
         # Get tools and prompt
