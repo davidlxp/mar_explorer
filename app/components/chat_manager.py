@@ -115,6 +115,7 @@ class ChatManager:
     @staticmethod
     def render_chat_interface() -> None:
         """Render the chat interface"""
+        # Main chat interface
         st.markdown("### 💬 Ask MAR")
         
         # Display chat history

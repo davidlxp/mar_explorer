@@ -38,18 +38,24 @@ class LogViewer:
 
     @staticmethod
     def render_logs() -> None:
-        """Render the logs interface"""
-        with st.expander("📋 Interaction History", expanded=True):
-            col1, col2 = st.columns([10, 1])
-            with col2:
-                if st.button("✕", key="close_logs"):
-                    st.session_state.show_logs = False
-                    st.rerun()
+        """Render the logs interface in the sidebar"""
+        # Initialize show_logs state if not exists
+        if "show_logs" not in st.session_state:
+            st.session_state.show_logs = False
             
-            all_logs = logs.get_all_logs()
-            if not all_logs:
-                st.info("No interaction history yet.")
-            else:
-                for log in all_logs:
-                    with st.container():
-                        LogViewer.render_log_entry(log)
+        # Add toggle button to sidebar
+        if st.sidebar.button("📋 View Interaction Logs", key="toggle_logs"):
+            st.session_state.show_logs = not st.session_state.show_logs
+            
+        # Show logs if enabled
+        if st.session_state.show_logs:
+            with st.sidebar:
+                st.markdown("### Recent Interactions")
+                all_logs = logs.get_all_logs()
+                
+                if not all_logs:
+                    st.info("No interaction history yet.")
+                else:
+                    for log in all_logs:
+                        with st.expander(f"Q: {log['question'][:50]}...", expanded=False):
+                            LogViewer.render_log_entry(log)

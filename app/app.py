@@ -59,8 +59,9 @@ def render_sidebar():
                         st.exception(e)
         
         st.markdown("### 🔍 Tools")
-        if st.button("📋 View Interaction Logs"):
-            st.session_state.show_logs = True
+        
+        # Render logs in sidebar
+        LogViewer.render_logs()
 
 def main():
     """Main application entry point"""
@@ -82,10 +83,6 @@ def main():
         dashboard = Dashboard()
         dashboard.render_dashboard()
         st.markdown("---")
-    
-    # Logs section (if enabled)
-    if st.session_state.show_logs:
-        LogViewer.render_logs()
     
     # Chat interface
     ChatManager.render_chat_interface()
