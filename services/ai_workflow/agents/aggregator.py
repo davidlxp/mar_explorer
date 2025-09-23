@@ -159,7 +159,7 @@ def aggregate_results(
             task_to_do = task["task_to_do"]
             result = task_results[i]
 
-            curr_context = f""" Task {task_id}: The goal is to {str(task_to_do)}. The result is {str(result)}. And the reference is {str(task["reference"])}.   """
+            curr_context = f""" Task {task_id}: The goal is to {str(task_to_do)}. The ToDoIntent is {str(task["todo_intent"])}. The result is {str(result)}. And the reference is {str(task["reference"])}.   """
             task_context.append(curr_context)
 
         # Build user message
@@ -172,7 +172,13 @@ def aggregate_results(
                     The key is making the response clear, concise andsuitable for finance professionals who may not have a technical background.
                     The goal is to make the answer immediately understandable and useful to someone in a finance department.
 
-                    If you see the system prompt metioned the reference, you should use those to populate the answer."""
+                    If you see the system prompt metioned the reference, you should use those to populate the answer. Reference should be used as the final answer.
+                    
+                    For task that the ToDoIntent is NUMERIC, you cite both the MAR website URL and the SQL query.
+                    For task that the ToDoIntent is CONTEXT, you cite both the report name, URL and the text.
+
+                    If there are both numeric and context tasks, you should cite both of them.
+                    """
 
         # Get tools and prompt
         tools = get_aggregator_tools()

@@ -17,6 +17,7 @@ from services.ai_workflow.utils.common_utils import (
     execute_vector_query
 )
 from services.constants import MAR_TABLE_PATH
+import services.task_handle_mar as task_handle_mar
 
 # Configure logging
 logging.basicConfig(
@@ -126,8 +127,15 @@ def handle_user_query(user_query: str) -> AnswerPacket:
 
         if plan.todo_intent == TodoIntent.NUMERIC:
 
+            # Get URL of the latest MAR meta data
+            ref_url = task_handle_mar.get_latest_mar_meta_from_storage()['url']
+
+            # Create the reference
+            ref = f"""The latest MAR file is located at {ref_url},
+            If you have access to Snowflake table, the SQL for querying your data is {plan.helper_for_action}."""
+
             # Add the SQL query as the reference
-            completed_tasks[-1]["reference"] = plan.helper_for_action
+            completed_tasks[-1]["reference"] = ref
 
             completed_results.append(result)
 
@@ -139,7 +147,7 @@ def handle_user_query(user_query: str) -> AnswerPacket:
             ref_text = result.result.hits[0].fields['text']
 
             # Add the report name and url as the reference
-            completed_tasks[-1]["reference"] = f"{ref_report_name}, {ref_url}"
+            completed_tasks[-1]["reference"] = f"{ref_report_name}, {ref_url}, {ref_text}"
 
             # Add the report name and text as the task's result
             completed_results.append(f"{ref_report_name}, {ref_text}")

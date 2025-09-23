@@ -122,7 +122,7 @@ class ChatManager:
         ChatManager.display_chat_history()
         
         # Chat input
-        if prompt := st.chat_input("What the total trade volume is in August 2025?"):
+        if prompt := st.chat_input("What the total trade volume looks like in August 2025?"):
             ChatManager.handle_user_input(prompt)
         
         # Clear chat button
