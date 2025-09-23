@@ -178,7 +178,7 @@ def plan_query_action(task: BreakdownQueryResult, parent_plans: Dict[int, Planni
         )
         
     except Exception as e:
-        print(f"Error analyzing query: {e.with_traceback()}")
+        print(f"Error analyzing query: {str(e)}")
         return PlanningResult(
             task_id=task.task_id,
             task_to_do=task.task_to_do,
@@ -242,10 +242,11 @@ def parse_plan_query_action_response(response: Any) -> Dict[str, Any]:
     if todo_intent == "numeric" and helper_for_action:
         helper_for_action = regularize_sql_query(helper_for_action)
     
-    # Extract confidence fields
-    confidence = tool_args.get("confidence", 0.5)  # Default to 0.5 if not provided
-    confidence_reason = tool_args.get("confidence_reason", "No confidence reason provided")
+    # Extract confidence fields with defaults
+    confidence = float(tool_args.get("confidence", 0.5))  # Default to 0.5 if not provided
+    confidence_reason = str(tool_args.get("confidence_reason", "No confidence reason provided"))
     
+    # Ensure all required fields are present
     return {
         "todo_intent": todo_intent,
         "helper_for_action": helper_for_action,
