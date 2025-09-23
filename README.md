@@ -47,11 +47,6 @@ The system implements a robust data processing pipeline:
    - Version control of data changes
    - Backup and recovery mechanisms
 
-3. **Data Access**
-   - Optimized query patterns
-   - Caching strategies for frequent requests
-   - Rate limiting for stability
-
 ## Grounding
 
 The system ensures all responses are grounded in source data:
