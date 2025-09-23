@@ -3,6 +3,7 @@ mar_orchestrator.py
 High-level orchestrator for handling MAR queries with Snowflake + Pinecone.
 """
 
+import logging
 from typing import List, Dict, Any, Optional, Tuple
 from services.ai_workflow.agents.query_breakdown import break_down_query
 from services.ai_workflow.agents.plan_query_action import plan_query_action
@@ -16,6 +17,14 @@ from services.ai_workflow.utils.common_utils import (
     execute_vector_query
 )
 from services.constants import MAR_TABLE_PATH
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 
 def handle_user_query(user_query: str) -> AnswerPacket:
     """
@@ -32,12 +41,23 @@ def handle_user_query(user_query: str) -> AnswerPacket:
     completed_results: List[Dict[str, Any]] = []
     
     while max_try_times > 0:
+        print(f"max_try_times: {max_try_times}")
+        
         # Get next set of tasks
         breakdown_results = break_down_query(
             user_query,
             completed_tasks=completed_tasks,
             completed_results=completed_results
         )
+
+        print("\n\n")
+        print("--------------------------------")
+        print("\n")
+        print("breakdown_results")
+        print(breakdown_results)
+        print("\n")
+        print("--------------------------------")
+        print("\n\n")
         
         # If no tasks returned, we're done
         if not breakdown_results:
@@ -52,12 +72,42 @@ def handle_user_query(user_query: str) -> AnswerPacket:
             
         # Get the task with minimum task_id
         current_task = min(breakdown_results, key=lambda x: x.task_id)
+
+        print("\n\n")
+        print("--------------------------------")
+        print("\n")
+        print("current_task")
+        print(current_task)
+        print("\n")
+        print("--------------------------------")
+        print("\n\n")
+
+        
         
         # Plan the current task
         plan = plan_query_action(current_task)
+
+        print("\n\n")
+        print("--------------------------------")
+        print("\n")
+        print("Plan the current task")
+        print(plan)
+        print("\n")
+        print("--------------------------------")
+        print("\n\n")
         
         # Execute the task based on intent
         result = execute_task(plan)
+
+        print("\n\n")
+        print("--------------------------------")
+        print("\n")
+        print("result")
+        print(result)
+        print("\n")
+        print("--------------------------------")
+        print("\n\n")
+
         if not result:
             return AnswerPacket(
                 text=f"Failed to execute task: {current_task.task_to_do}",
@@ -73,6 +123,24 @@ def handle_user_query(user_query: str) -> AnswerPacket:
             "todo_intent": plan.todo_intent.value
         })
         completed_results.append(result)
+
+        print("\n\n")
+        print("--------------------------------")
+        print("\n")
+        print("completed_tasks")
+        print(completed_tasks)
+        print("\n")
+        print("--------------------------------")
+        print("\n\n")
+
+        print("\n\n")
+        print("--------------------------------")
+        print("\n")
+        print("completed_results")
+        print(completed_results)
+        print("\n")
+        print("--------------------------------")
+        print("\n\n")
         
         # If this was the last task, aggregate and return
         remaining_tasks = [t for t in breakdown_results if t.task_id != current_task.task_id]

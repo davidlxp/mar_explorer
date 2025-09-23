@@ -202,7 +202,7 @@ Please aggregate these results into a clear, concise answer that directly addres
         )
         
     except Exception as e:
-        print(f"Error aggregating results: {e}")
+        print(f"Error aggregating results: {e.with_traceback}")
         return AnswerPacket(
             text=f"Error aggregating results: {str(e)}",
             citations=[],

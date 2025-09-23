@@ -2,9 +2,9 @@
 plan_query_action.py
 AI agent for planning actions for query.
 """
-
-from typing import Dict, Any, List
 import json
+from typing import Dict, Any, List
+import logging
 from services.ai_workflow.data_model import BreakdownQueryResult, PlanningResult, TodoIntent
 from services.ai_workflow.utils.common_utils import get_mar_table_schema, load_available_products
 from services.ai_workflow.agents.summarize_parent_plans import summarize_parent_plans
@@ -12,6 +12,13 @@ from services.ai_workflow.utils.openai_utils import call_openai
 from services.ai_workflow.utils.common_utils import regularize_sql_query
 
 from services.constants import MAR_TABLE_PATH
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 
 def get_plan_query_action_tools() -> List[Dict[str, Any]]:
@@ -62,14 +69,8 @@ def get_plan_query_action_system_prompt(schema: Any, products: Dict[str, Any], s
         products: Available products catalog
         sql_examples: SQL query examples
     """
-    import json
-    
-    # Format available products
-    asset_classes_str = ", ".join(products["asset_classes"])
-    product_types_str = ", ".join(products["product_types"])
-    products_by_type_str = json.dumps(products["products_by_type"], indent=2)
 
-    return f"""You are an analyst expert for financial MAR data.
+    the_prompt = f"""You are an analyst expert for financial MAR data.
     When receiving a query from user, carefully analyze it and break it down into structured tasks as needed.
     
     Task types:
@@ -117,10 +118,8 @@ def get_plan_query_action_system_prompt(schema: Any, products: Dict[str, Any], s
     2. Set confidence to 1.0.
 
     Available Products Catalog:
-    - Asset Classes: {asset_classes_str}
-    - Product Types: {product_types_str}
-    - Products by Category:
-    {products_by_type_str}
+    (This is a list of dictionaries, where each dictionary represents a financial product with its asset class, product type, and product name.)
+    {products}
 
     Table Schema:
     - Name: {schema.name}
@@ -133,6 +132,8 @@ def get_plan_query_action_system_prompt(schema: Any, products: Dict[str, Any], s
     
     IMPORTANT: Only use asset_class, product_type, and product values from the above catalog.
     If a filter value is not in the catalog, do not include that parameter."""
+
+    return the_prompt
 
 def plan_query_action(task: BreakdownQueryResult, parent_plans: Dict[int, PlanningResult] = None) -> PlanningResult:
     """
@@ -156,23 +157,11 @@ def plan_query_action(task: BreakdownQueryResult, parent_plans: Dict[int, Planni
         # Get parent plan summary if available
         parent_summary = summarize_parent_plans(task, parent_plans) if parent_plans else ""
         parent_context = f"\nParent Task Context:\n{parent_summary}" if parent_summary else ""
-
-
-        ###### Testing Below ######
-        print("\n\n")
-        print("--------------------------------")
-        print("\n")
-        print(parent_context)
-        print("\n")
-        print("--------------------------------")
-        print("\n\n")
-
-        ###### Testing Above ######
         
         # Get tools and prompt
         tools = get_plan_query_action_tools()
         system_prompt = get_plan_query_action_system_prompt(schema, products, sql_examples) + parent_context
-        
+
         # Call OpenAI
         response = call_openai(system_prompt, task.task_to_do, tools)
         
@@ -189,7 +178,7 @@ def plan_query_action(task: BreakdownQueryResult, parent_plans: Dict[int, Planni
         )
         
     except Exception as e:
-        print(f"Error analyzing query: {e}")
+        print(f"Error analyzing query: {e.with_traceback()}")
         return PlanningResult(
             task_id=task.task_id,
             task_to_do=task.task_to_do,

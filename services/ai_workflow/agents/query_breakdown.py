@@ -207,7 +207,7 @@ def break_down_query(
             logger.info(f"Tool call arguments: {response.choices[0].message.tool_calls[0].function.arguments}")
         else:
             logger.info("Response has no tool calls")
-            
+
         # Parse response
         if not response.choices[0].message.tool_calls:
             return [BreakdownQueryResult(
@@ -215,7 +215,7 @@ def break_down_query(
                 task_to_do="Can't figure out how to break down the query.",
                 reason="Just can't figure it out."
             )]
-            
+
         # Extract tasks
         try:
             result = response.choices[0].message.tool_calls[0].function.arguments
@@ -261,7 +261,7 @@ def break_down_query(
                     task_to_do="Could not parse any valid tasks",
                     reason="Invalid task data format"
                 )]
-                
+
             return tasks
                 
         except json.JSONDecodeError:
