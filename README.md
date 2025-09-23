@@ -145,6 +145,16 @@ Make sure to replace all placeholder values (e.g., `your_openai_api_key`) with y
 
 **Note**: Never commit the `.env` file to version control. The repository's `.gitignore` should include `.env` to prevent accidental commits of sensitive information.
 
+## Run The Project
+
+Once you have completed all the installation steps and configured your `.env` file, you can run the project using:
+
+```bash
+streamlit run app/app.py
+```
+
+The application will be available at http://localhost:8501 in your web browser.
+
 ## License
 
 [License information to be added]
