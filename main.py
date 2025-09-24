@@ -17,6 +17,8 @@ from services.vectorstores import pinecone_store
 import services.ai_workflow.mar_orchestrator as mar_orchestrator
 # from services.ai_workflow.utils.common_utils import load_available_products, get_mar_table_schema, execute_sql_query, execute_vector_query
 import services.task_handle_mar as task_handle_mar
+from services.ai_workflow.utils.common_utils import execute_sql_query
+
 
 if __name__ == "__main__":
 
@@ -69,14 +71,15 @@ if __name__ == "__main__":
     # tasks = mar_orchestrator.handle_user_query(user_query=the_query)
     # print(tasks)
 
-    the_query = "Hi!"
-    tasks = mar_orchestrator.handle_user_query(user_query=the_query)
-    print(tasks)
+    # the_query = "Hi!"
+    # tasks = mar_orchestrator.handle_user_query(user_query=the_query)
+    # print(tasks)
 
 
-    # info = submit_sql_query("SELECT * FROM mar_combined_m LIMIT 10")
+    # info = execute_sql_query("SELECT * FROM mar_combined_m LIMIT 10")
+    info = execute_sql_query("SELECT SUM(volume) as total_volume FROM mar_explorer.main.mar_combined_m WHERE year = 2025 AND month = 8;")
     # info = execute_vector_query("US Government bond decline reason in August 2025?")
-    # print(info)
+    print(info)
     # print(info.result.hits[0].fields['report_name'])
     # print(info.result.hits[0].fields['url'])
 
