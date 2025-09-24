@@ -5,6 +5,7 @@ AI agent for analyzing and breaking down user queries into sequential tasks.
 
 from typing import List, Dict, Any
 from openai import OpenAI
+from pydantic_core.core_schema import NoneSchema
 from services.constants import MAR_ORCHESTRATOR_MODEL
 from services.ai_workflow.data_model import BreakdownQueryResult
 from services.ai_workflow.utils.openai_utils import call_openai
@@ -136,7 +137,7 @@ def break_down_query(
     query: str,
     completed_tasks: List[Dict[str, Any]] = [],
     completed_results: List[Dict[str, Any]] = [],
-) -> List[BreakdownQueryResult]:
+) -> BreakdownQueryResult:
     """
     Call the QueryBreaker to get ONE next atomic task.
     Returns [] on any failure so the caller can choose a user-facing fallback.
@@ -168,13 +169,13 @@ def break_down_query(
 
     except Exception as e:
         logger.error(f"Error in break_down_query: {e}", exc_info=True)
-        return []
+        return None
 
 
-def _parse_tool_call_to_result(response) -> List[BreakdownQueryResult]:
+def _parse_tool_call_to_result(response) -> BreakdownQueryResult:
     """
     Parse OpenAI tool call into BreakdownQueryResult list (length 1).
-    Returns [] if parsing fails.
+    Returns None if parsing fails.
     """
     try:
         choice = response.choices[0]
@@ -187,10 +188,10 @@ def _parse_tool_call_to_result(response) -> List[BreakdownQueryResult]:
                 try:
                     data = json.loads(content)
                     if isinstance(data, dict) and "task_to_do" in data and "reason" in data:
-                        return [BreakdownQueryResult(task_to_do=data["task_to_do"], reason=data["reason"])]
+                        return BreakdownQueryResult(task_to_do=data["task_to_do"], reason=data["reason"])
                 except json.JSONDecodeError:
                     logger.warning("Model returned non-tool, non-JSON content for QueryBreaker.")
-            return []
+            return None
 
         # Use the first tool call named break_down_query
         tc = next((tc for tc in tool_calls if tc.function.name == "break_down_query"), tool_calls[0])
@@ -200,10 +201,10 @@ def _parse_tool_call_to_result(response) -> List[BreakdownQueryResult]:
         task = data.get("task_to_do", "").strip()
         reason = data.get("reason", "").strip()
         if task and reason:
-            return [BreakdownQueryResult(task_to_do=task, reason=reason)]
+            return BreakdownQueryResult(task_to_do=task, reason=reason)
         else:
             logger.warning(f"Tool args missing fields: {data}")
-            return []
+            return None
     except Exception:
         logger.exception("Failed to parse QueryBreaker tool call.")
-        return []
+        return None

@@ -19,7 +19,8 @@ import services.ai_workflow.mar_orchestrator as mar_orchestrator
 import services.task_handle_mar as task_handle_mar
 import services.ai_workflow.utils.common_utils as common_utils
 from services.db import get_database
-from services.ai_workflow.agents.query_breaker import break_down_query
+import services.ai_workflow.agents.query_breaker as query_breaker
+import services.ai_workflow.agents.task_planner as task_planner
 
 
 
@@ -94,9 +95,12 @@ if __name__ == "__main__":
     
     completed_tasks = []
     completed_results = []
-    query = "What is the total trading volume of Tradeweb in August 2025?"
-    results = break_down_query(query, completed_tasks, completed_results)
-    print(results)
+    query = "Why did Credit volumes drop in Aug 2025?"
+    current_task = query_breaker.break_down_query(query, completed_tasks, completed_results)
+    print(current_task)
+
+    plan = task_planner.plan_query_action(current_task)
+    print(plan)
 
     pass
 

@@ -77,10 +77,9 @@ def handle_user_query(user_query: str) -> AnswerPacket:
                 citations=[],
                 confidence=0.0
             )
-            
-        # Get the task with minimum task_id
-        current_task = min(breakdown_results, key=lambda x: x.task_id)
 
+        current_task = breakdown_results[0]
+            
         # print("\n\n")
         # print("--------------------------------")
         # print("\n")
@@ -89,9 +88,17 @@ def handle_user_query(user_query: str) -> AnswerPacket:
         # print("\n")
         # print("--------------------------------")
         # print("\n\n")
-        
+
         # Plan the current task
         plan = plan_query_action(current_task)
+
+        if not plan:
+            return AnswerPacket(
+                text=":( Sorry, I failed to plan the task. Please try again.",
+                citations=[],
+                confidence=0.0
+            )
+        
 
         # print("\n\n")
         # print("--------------------------------")

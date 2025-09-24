@@ -37,12 +37,14 @@ class PlanningResult:
     todo_intent: TodoIntent
     helper_for_action: Optional[str] = None  # SQL query or vector search query or None
 
+@dataclass
 class CompletedTask:
     """Information about a completed task."""
     task_to_do: str
     todo_intent: TodoIntent
     helper_for_action: Optional[str] = None  # SQL query or vector search query or None
 
+@dataclass
 class CompletedTaskResult:
     """Result of a completed task."""
     result: Any
