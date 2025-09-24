@@ -66,6 +66,14 @@ def handle_user_query(user_query: str) -> AnswerPacket:
         # The while loop is for the task level
         while validator_confidence < validator_confidence_for_pass and tasks_tried_times[-1] < max_task_tries:
 
+            if DEBUG_MODE:
+                print('\n')
+                print("=~"*20)
+                print(f"tasks_tried_times for task {len(tasks_tried_times)}")
+                print(tasks_tried_times)
+                print("=~"*20)
+                print('\n')
+
             # Get the prior tasks info
             prior_tasks_info = get_completed_tasks_info(tasks_completed, tasks_results)
             # Get next set of tasks
@@ -94,6 +102,12 @@ def handle_user_query(user_query: str) -> AnswerPacket:
                     confidence=0.0
                 )
             
+            if DEBUG_MODE:
+                print("="*100)
+                print("plan")
+                print(plan)
+                print("="*100)
+
             # Execute the task based on intent
             result = execute_task(plan)
 
@@ -103,13 +117,31 @@ def handle_user_query(user_query: str) -> AnswerPacket:
                     citations=[],
                     confidence=0.0
                 )
+            
+            if DEBUG_MODE:
+                print("="*100)
+                print("result")
+                print(result)
+                print("="*100)
 
             # Construct the input for the validator
             input_for_validator = construct_input_for_validator(user_query, breakdown_result, plan, result)
+
+            if DEBUG_MODE:
+                print("="*100)
+                print("input_for_validator")
+                print(input_for_validator)
+                print("="*100)
             
             # Validate the task result
             prior_tasks_info = get_completed_tasks_info(tasks_completed, tasks_results)
             validator_opinion = validate_task_result(input_for_validator, prior_tasks_info)
+
+            if DEBUG_MODE:
+                print("="*100)
+                print("validator_opinion")
+                print(validator_opinion)
+                print("="*100)
 
             if not validator_opinion:
                 return AnswerPacket(
@@ -119,7 +151,7 @@ def handle_user_query(user_query: str) -> AnswerPacket:
                 )
             
             # Increment the tried times regardless of the validator confidence (exit or not)
-            tasks_tried_times.append(tasks_tried_times[-1] + 1)
+            tasks_tried_times[-1] += 1
             
             # When the validator is confident, prepare to exit the loop
             validator_confidence = validator_opinion.confidence_of_result

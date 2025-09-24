@@ -78,29 +78,36 @@ Guidelines:
 1. Always ground your answer in provided task results — never hallucinate.
 2. For volume or ADV, assume values are in Million USD unless specified otherwise.
 3. Compute overall confidence as the average of task confidences, and explain your reasoning.
-4. If data is insufficient, explain what was tried and invite the user to refine their query. And mention that you welcome their follow-up and you will try your best.
+4. If data is insufficient, explain what was tried and invite the user to refine their query. Mention that you welcome their follow-up and you will try your best.
 5. Citations:
-   - For NUMERIC: cite MAR website URL + SQL query
-   - For CONTEXT: cite report name + URL + text snippet
-   - For CALCULATION: cite the math expression
-   - For AGGREGATION: no direct citation
+   - For NUMERIC:
+     * Always cite BOTH the MAR website URL and the SQL query (if the URL was present in task reference).
+     * If multiple tasks used the same SQL or URL, deduplicate and cite only once.
+   - For CONTEXT:
+     * Cite the report name + URL + the specific text snippet that directly supports the answer (highlight exact phrase if possible).
+   - For CALCULATION:
+     * Cite the explicit math expression used.
+   - For AGGREGATION:
+     * No direct citation required.
 
 Example Good Output:
 Answer: "The ADV for credit products rose 15% YoY to $25.3B in Aug 2025, driven by electronic trading adoption."
-Citations: [{{"source":"SQL","reference":"SELECT SUM(adv)..."}},{{"source":"Press Release","reference":"credit PR excerpt"}}]
+Citations: [
+  {{"source":"SQL","reference":"URL: https://www.tradeweb.com/... | SQL: SELECT SUM(adv)..."}},
+  {{"source":"Press Release","reference":"URL: https://www.tradeweb.com/... | TEXT: 'credit volumes increased due to electronic trading adoption'"}}
+]
 Confidence: 0.85
 Confidence Reason: "Both SQL and PR results are consistent and strongly support the conclusion."
 
 Example Bad Output:
 - Just raw numbers without explanation
-- Missing or vague citations
+- Missing MAR website URL in SQL citation
+- Quoting entire PR chunk without highlighting relevant sentence
 - No reasoning for confidence
 
 ### All Tasks Info ###
 {all_task_info_str}
 """
-
-
 
 def aggregate_results(
     user_query: str,

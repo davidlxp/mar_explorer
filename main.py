@@ -63,7 +63,9 @@ if __name__ == "__main__":
 
     # the_query = "YoY comparison of ADV for cash products for August, comparing 2025 to 2024"
 
-    the_query = "US Government bond decline reason in August 2025?"
+    # the_query = "US Government bond decline reason in August 2025?"
+
+    the_query = "Hello, how are you?"
     tasks = mar_orchestrator.handle_user_query(user_query=the_query)
     print(tasks)
 
