@@ -33,7 +33,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def handle_user_query(user_query: str) -> AnswerPacket:
+def handle_user_query(user_query: str, history: List[Dict[str, str]]) -> AnswerPacket:
     """
         High-level entrypoint for query processing:
         0. Receptionist: decide if we need to clarify with user or proceed
@@ -44,7 +44,7 @@ def handle_user_query(user_query: str) -> AnswerPacket:
 
     # --- Receptionist step ---
 
-    reception_result = receive_query(user_query)
+    reception_result = receive_query(user_query, history)
 
     if reception_result.next_step == "follow_up_user":
         return AnswerPacket(

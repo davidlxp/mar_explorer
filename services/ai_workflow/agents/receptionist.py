@@ -47,7 +47,7 @@ def get_receptionist_tools() -> List[Dict[str, Any]]:
         }
     ]
 
-def get_receptionist_system_prompt() -> str:
+def get_receptionist_system_prompt(history: List[Dict[str, str]]) -> str:
 
     mar_table_schema_str = common_utils.get_mar_table_schema_str()
     available_products_str = common_utils.get_available_products_str()
@@ -90,15 +90,18 @@ Query: "Show trend?"
 - Data coverage: Only MAR Excel tabs "ADV-M" and "Volume-M"
 - Press releases available: {pr_available_in_storage_str}
 - Available products: {available_products_str}
+
+### Conversation History ###
+{history}
 """
 
-def receive_query(user_query: str) -> ReceptionResult:
+def receive_query(user_query: str, history: List[Dict[str, str]]) -> ReceptionResult:
     """
     Process the incoming user query and decide whether to clarify or proceed.
     """
     try:
         tools = get_receptionist_tools()
-        system_prompt = get_receptionist_system_prompt()
+        system_prompt = get_receptionist_system_prompt(history)
 
         response = call_openai(
             system_prompt,
