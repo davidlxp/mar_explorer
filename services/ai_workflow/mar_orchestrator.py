@@ -94,6 +94,9 @@ def _process_tasks(user_query: str) -> AnswerPacket:
         # The while loop is for the task level
         while validator_confidence < validator_confidence_for_pass and tasks_tried_times[-1] < max_task_tries:
 
+            # Get the prior tasks info
+            prior_tasks_info = get_completed_tasks_info(tasks_completed, tasks_results)
+
             if DEBUG_MODE:
                 print('\n')
                 print("=~"*20)
@@ -102,8 +105,6 @@ def _process_tasks(user_query: str) -> AnswerPacket:
                 print("=~"*20)
                 print('\n')
 
-            # Get the prior tasks info
-            prior_tasks_info = get_completed_tasks_info(tasks_completed, tasks_results)
             # Get next set of tasks
             breakdown_result = break_down_query(user_query, prior_tasks_info)
 
@@ -121,7 +122,7 @@ def _process_tasks(user_query: str) -> AnswerPacket:
                 )
 
             # Plan the current task
-            plan = plan_query_action(breakdown_result)
+            plan = plan_query_action(breakdown_result, prior_tasks_info)
 
             if not plan:
                 return AnswerPacket(
@@ -162,7 +163,6 @@ def _process_tasks(user_query: str) -> AnswerPacket:
                 print("="*100)
             
             # Validate the task result
-            prior_tasks_info = get_completed_tasks_info(tasks_completed, tasks_results)
             validator_opinion = validate_task_result(input_for_validator, prior_tasks_info)
 
             if DEBUG_MODE:

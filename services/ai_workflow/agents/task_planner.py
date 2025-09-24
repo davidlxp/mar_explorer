@@ -50,7 +50,7 @@ def get_plan_query_action_tools() -> List[Dict[str, Any]]:
         }
     ]
 
-def get_plan_query_action_system_prompt() -> str:
+def get_plan_query_action_system_prompt(prior_tasks_info: str) -> str:
     schema_str = common_utils.get_mar_table_schema_str()
     products_str = common_utils.get_available_products_str()
     sql_examples_str = common_utils.get_sql_eg_plan_query_action()
@@ -86,13 +86,17 @@ Rules:
 
 ### Press Releases Available in Storage ###
 {pr_available_in_storage_str}
+
+### This is just for your information, these are the tasks that have been previously completed and their results ###
+Please note that sometimes you need data from previous tasks to complete the current task.
+{prior_tasks_info}
 """
 
 
-def plan_query_action(task: BreakdownQueryResult) -> PlanningResult:
+def plan_query_action(task: BreakdownQueryResult, prior_tasks_info: str) -> PlanningResult:
     try:
         tools = get_plan_query_action_tools()
-        system_prompt = get_plan_query_action_system_prompt()
+        system_prompt = get_plan_query_action_system_prompt(prior_tasks_info)
 
         response = call_openai(
             system_prompt,
