@@ -23,6 +23,7 @@ import services.ai_workflow.utils.executor_logic as executor_logic
 from services.ai_workflow.agents.validator import validate_task_result
 from services.ai_workflow.utils.executor_logic import execute_task
 from services.ai_workflow.utils.common_utils import contruct_task_info_str_for_aggregator
+from services.ai_workflow.agents.receptionist import receive_query
 
 # Configure logging
 logging.basicConfig(
@@ -33,6 +34,33 @@ logger = logging.getLogger(__name__)
 
 
 def handle_user_query(user_query: str) -> AnswerPacket:
+    """
+        High-level entrypoint for query processing:
+        0. Receptionist: decide if we need to clarify with user or proceed
+        1. Break down query into tasks
+        2. Process tasks one by one, with iterative refinement
+        3. Aggregate results into final answer
+    """
+
+    # --- Receptionist step ---
+
+    reception_result = receive_query(user_query)
+
+    if reception_result.next_step == "follow_up_user":
+        return AnswerPacket(
+            text=reception_result.next_step_content,
+            citations=[],
+            confidence=0.0,
+            confidence_reason="Query unclear or outside scope, asked user to clarify"
+        )
+
+    # If we’re here, next_step = "start_task"
+    cleaned_query = reception_result.next_step_content
+
+    # --- Then continue your current pipeline ---
+    return _process_tasks(cleaned_query)  # wrap your current loop into a helper
+
+def _process_tasks(user_query: str) -> AnswerPacket:
     """
     High-level entrypoint for query processing:
     1. Break down query into tasks

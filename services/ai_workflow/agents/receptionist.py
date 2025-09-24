@@ -47,23 +47,22 @@ def get_receptionist_tools() -> List[Dict[str, Any]]:
         }
     ]
 
-
 def get_receptionist_system_prompt() -> str:
-  
-    task_breakdown_eg_str = common_utils.get_task_breakdown_eg_str()
+
     mar_table_schema_str = common_utils.get_mar_table_schema_str()
     available_products_str = common_utils.get_available_products_str()
     pr_available_in_storage_str = common_utils.get_pr_available_in_storage_str()
 
     """System prompt for receptionist agent."""
     return f"""
-You are the Receptionist Agent. 
+You are the Receptionist Agent for MAR data and press releases analysis system. Your user is a finance professional.
 You decide if a user query is clear and answerable with available data, or if clarification is required.
 
-Available knowledge:
-- MAR table schema: {schema_str}
-- Data coverage: Only MAR Excel tabs "ADV-M" and "Volume-M"
-- Press releases available: {pr_list_str}
+### Conversation Handling ###
+- You may see multiple turns of conversation (previous user questions + assistant responses).  
+- Always pay the most attention to the **latest user query**.  
+- Use earlier conversation turns only if they provide missing context that makes the latest query valid.  
+- Do not let old conversation history distract you or override what the user is asking now.  
 
 Rules:
 1. If query is unclear, incomplete, irrelevant, or outside available data (e.g. asks about pricing, forecasts, or datasets not listed), set:
@@ -86,16 +85,22 @@ Query: "Why is trading volume dropping in China?"
 
 Query: "Show trend?"
 → follow_up_user: "Could you clarify which product and time range you’d like the trend for?"
+
+### Available knowledge ###
+
+- MAR table schema: {mar_table_schema_str}
+- Data coverage: Only MAR Excel tabs "ADV-M" and "Volume-M"
+- Press releases available: {pr_available_in_storage_str}
+- Available products: {available_products_str}
 """
 
-
-def receive_query(user_query: str, schema_str: str, pr_list_str: str) -> ReceptionResult:
+def receive_query(user_query: str) -> ReceptionResult:
     """
     Process the incoming user query and decide whether to clarify or proceed.
     """
     try:
         tools = get_receptionist_tools()
-        system_prompt = get_receptionist_system_prompt(schema_str, pr_list_str)
+        system_prompt = get_receptionist_system_prompt()
 
         response = call_openai(
             system_prompt,

@@ -221,13 +221,13 @@ def get_pr_available_in_storage_str() -> str:
     '''
     Get the press releases available in storage.
     '''
-    # file_names = [
-    #     file_name
-    #     for file_name in os.listdir(PR_FILES_FOLDER_PATH_STR)
-    #     if file_name.endswith(".md")
-    # ]
+    file_names = [
+        file_name
+        for file_name in os.listdir(PR_FILES_FOLDER_PATH_STR)
+        if file_name.endswith(".md")
+    ]
 
-    file_names = ['tradeweb_reports-monthly-2025_08']
+    # file_names = ['tradeweb_reports-monthly-2025_08']
 
     return f"""
         Press Releases Available in Storage:
