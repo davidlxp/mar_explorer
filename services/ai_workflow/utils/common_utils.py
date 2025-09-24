@@ -162,14 +162,17 @@ def get_completed_tasks_info(tasks_completed: List[CompletedTask] = [], tasks_re
     for i in range(len(tasks_completed)):
         task = tasks_completed[i]
         result = tasks_results[i]
+    
         todo_intent = task.todo_intent.value
         helper_for_action = task.helper_for_action
+        task_to_do = task.task_to_do
 
         summary = f'''
         ::::::::::::::::::::::::
         Task #{i+1}
-        Task: {tasks_completed[i]['task_to_do']}
+        Task: {task_to_do}
         The type of the task is: {todo_intent} (numeric means SQL querying / context means vector searching / aggregation means combining results from other tasks)
+        Task reason: {task.task_reason}
         The helper used to complete the task is: {helper_for_action}
         Result: {result}
         ::::::::::::::::::::::::

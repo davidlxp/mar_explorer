@@ -47,7 +47,7 @@ def handle_user_query(user_query: str) -> AnswerPacket:
     validator_confidence_for_pass = 0.8
     tasks_completed: List[CompletedTask] = []
     tasks_results: List[CompletedTaskResult] = []
-    tasks_tried_times: List[int] = []
+    tasks_tried_times: List[int] = [0]
     
     current_try_times = 1
     while current_try_times <= max_try_times:
@@ -57,7 +57,13 @@ def handle_user_query(user_query: str) -> AnswerPacket:
             print(f"current_try_times: {current_try_times}")
             print(f"max_try_times: {max_try_times}")
 
+        # Give 0.0 so it can enter the while loop
         validator_confidence = 0.0
+
+        # Initialize the retry counter for the task
+        tasks_tried_times.append(0)
+
+        # The while loop is for the task level
         while validator_confidence < validator_confidence_for_pass and tasks_tried_times[-1] < max_task_tries:
 
             # Get the prior tasks info
@@ -129,9 +135,9 @@ def handle_user_query(user_query: str) -> AnswerPacket:
 
                 completed_task = CompletedTask(
                     task_to_do=current_task.task_to_do,
-                    todo_intent=current_task.todo_intent,
+                    todo_intent=plan.todo_intent,
                     task_reason=breakdown_results.reason,
-                    helper_for_action=current_task.helper_for_action,
+                    helper_for_action=plan.helper_for_action,
                 )
 
                 completed_task_result = CompletedTaskResult(
