@@ -9,11 +9,11 @@
 # from services import task_handle_pr
 # import asyncio
 import services.crawler as crawler
-# import tests.test_runs as test_runs
+import tests.test_runs as test_runs
 # import services.utils as utils
 # import os
 # from services.constants import *
-# from services.vectorstores import pinecone_store
+from services.vectorstores import pinecone_store
 import services.ai_workflow.mar_orchestrator as mar_orchestrator
 # from services.ai_workflow.utils.common_utils import load_available_products, get_mar_table_schema, execute_sql_query, execute_vector_query
 import services.task_handle_mar as task_handle_mar
@@ -31,7 +31,7 @@ if __name__ == "__main__":
     # test_runs.test_run_ALL()
     # test_runs.test_run_crawler_one()
     # test_runs.test_run_fetch_press_release()
-    # test_runs.test_run_fetch_many_press_releases()
+    test_runs.test_run_fetch_many_press_releases()
     # test_runs.test_run_parse_pr_m()
 
     # test_runs.test_run_ingest_all_pr_md_in_storage()
@@ -65,9 +65,9 @@ if __name__ == "__main__":
 
     # the_query = "US Government bond decline reason in August 2025?"
 
-    the_query = "Hello, how are you?"
-    tasks = mar_orchestrator.handle_user_query(user_query=the_query)
-    print(tasks)
+    # the_query = "Hello, how are you?"
+    # tasks = mar_orchestrator.handle_user_query(user_query=the_query)
+    # print(tasks)
 
     # the_query = "Hi!"
     # tasks = mar_orchestrator.handle_user_query(user_query=the_query)
