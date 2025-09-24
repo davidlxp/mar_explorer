@@ -99,13 +99,13 @@ def handle_user_query(user_query: str) -> AnswerPacket:
 
             if not result:
                 return AnswerPacket(
-                    text=f"Failed to execute task: {current_task.task_to_do}",
+                    text=f"Failed to execute task: {breakdown_result.task_to_do}",
                     citations=[],
                     confidence=0.0
                 )
 
             # Construct the input for the validator
-            input_for_validator = construct_input_for_validator(user_query, current_task, plan, result)
+            input_for_validator = construct_input_for_validator(user_query, breakdown_result, plan, result)
             
             # Validate the task result
             prior_tasks_info = get_completed_tasks_info(tasks_completed, tasks_results)
@@ -113,7 +113,7 @@ def handle_user_query(user_query: str) -> AnswerPacket:
 
             if not validator_opinion:
                 return AnswerPacket(
-                    text=f"Failed to validate task result: {current_task.task_to_do}",
+                    text=f"Failed to validate task result: {breakdown_result.task_to_do}",
                     citations=[],
                     confidence=0.0
                 )
@@ -126,9 +126,9 @@ def handle_user_query(user_query: str) -> AnswerPacket:
             if validator_confidence >= validator_confidence_for_pass:
 
                 completed_task = CompletedTask(
-                    task_to_do=current_task.task_to_do,
+                    task_to_do=breakdown_result.task_to_do,
                     todo_intent=plan.todo_intent,
-                    task_reason=breakdown_results.reason,
+                    task_reason=breakdown_result.reason,
                     helper_for_action=plan.helper_for_action,
                 )
 
