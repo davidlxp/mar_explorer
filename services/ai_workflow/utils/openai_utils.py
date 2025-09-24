@@ -3,7 +3,7 @@ openai_tools.py
 Tools for interacting with OpenAI API, including function definitions and call handling.
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from openai import OpenAI
 from services.constants import MAR_ORCHESTRATOR_MODEL, MAR_TABLE_PATH
 
@@ -11,7 +11,7 @@ from services.constants import MAR_ORCHESTRATOR_MODEL, MAR_TABLE_PATH
 client = OpenAI()
 model = MAR_ORCHESTRATOR_MODEL
 
-def call_openai(system_prompt: str, user_query: str, tools: List[Dict[str, Any]]) -> Dict[str, Any]:
+def call_openai(system_prompt: str, user_query: str, tools: List[Dict[str, Any]], tool_choice: Optional[Dict[str, Any]] = "Auto") -> Dict[str, Any]:
     """
     Make an OpenAI API call with function calling.
     
@@ -30,7 +30,7 @@ def call_openai(system_prompt: str, user_query: str, tools: List[Dict[str, Any]]
             {"role": "user", "content": user_query}
         ],
         tools=tools,
-        tool_choice="auto"
+        tool_choice=tool_choice
     )
     
     return response

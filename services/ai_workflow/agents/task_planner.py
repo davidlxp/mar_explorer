@@ -9,6 +9,7 @@ from services.ai_workflow.data_model import BreakdownQueryResult, PlanningResult
 from services.ai_workflow.utils.common_utils import get_mar_table_schema, load_available_products
 from services.ai_workflow.utils.openai_utils import call_openai
 from services.ai_workflow.utils.common_utils import regularize_sql_query
+from services.ai_workflow.utils.common_utils import get_sql_eg_plan_query_action
 
 from services.constants import MAR_TABLE_PATH
 
@@ -248,40 +249,3 @@ def parse_plan_query_action_response(response: Any) -> Dict[str, Any]:
         "confidence": confidence,
         "confidence_reason": confidence_reason
     }
-
-def get_sql_eg_plan_query_action() -> str:
-    """
-    Returns example SQL queries for the mar_combined_m table.
-    These examples help the AI understand proper Snowflake SQL syntax and table usage.
-    """
-    return f"""
-Example Queries:
-
-1. Get total volume for all products in August 2025:
-   SELECT SUM(volume) as total_volume
-   FROM {MAR_TABLE_PATH}
-   WHERE year = 2025 
-     AND month = 8;
-
-2. Get total volume for credit derivatives in August 2025:
-   SELECT SUM(volume) as total_volume
-   FROM {MAR_TABLE_PATH}
-   WHERE year = 2025 
-     AND month = 8
-     AND asset_class = 'credit'
-     AND product_type = 'derivatives';
-
-3. Get monthly ADV trend for US ETFs in 2025:
-   SELECT year, month, AVG(adv) as average_daily_volume
-   FROM {MAR_TABLE_PATH}
-   WHERE year = 2025
-     AND product = 'us etfs'
-   GROUP BY year, month
-   ORDER BY year, month;
-
-Note: The table contains:
-- Volumes are stored in the 'volume' column (DOUBLE PRECISION)
-- ADV (Average Daily Volume) in the 'adv' column (DOUBLE PRECISION)
-- Time dimensions: year (NUMBER) and month (NUMBER)
-- Product dimensions: asset_class, product_type, product (all VARCHAR)
-"""

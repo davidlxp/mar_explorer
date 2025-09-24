@@ -9,7 +9,8 @@ from services.constants import MAR_ORCHESTRATOR_MODEL
 from services.ai_workflow.data_model import BreakdownQueryResult
 from services.ai_workflow.utils.openai_utils import call_openai
 import logging
-
+from services.ai_workflow.data_model import CompletedTask, CompletedTaskResult
+import services.ai_workflow.utils.common_utils as common_utils
 import json
 
 model = MAR_ORCHESTRATOR_MODEL
@@ -22,46 +23,33 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def get_breakdown_tools() -> List[Dict[str, Any]]:
-    """Get the function schema for query breakdown."""
+    """Single-function tool: return exactly one next atomic task."""
     return [
         {
             "type": "function",
             "function": {
                 "name": "break_down_query",
-                "description": "Break down a user query into sequential tasks that need to be executed in order",
+                "description": "Propose the NEXT atomic task toward answering the query (one task only).",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "tasks": {
-                            "type": "array",
-                            "description": "List of tasks in execution order",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "task_id": {
-                                        "type": "integer",
-                                        "description": "Unique identifier for this task, starting from 1"
-                                    },
-                                    "task": {
-                                        "type": "string",
-                                        "description": "Description of what needs to be done"
-                                    },
-                                    "reason": {
-                                        "type": "string",
-                                        "description": "Why this task is needed and why it can't be combined with other tasks"
-                                    },
-                                },
-                                "required": ["task_id", "task", "reason"]
-                            }
+                        "task_to_do": {
+                            "type": "string",
+                            "description": "One minimal, self-contained action (e.g., 'Query ADV for cash in Aug 2024 & 2025')."
+                        },
+                        "reason": {
+                            "type": "string",
+                            "description": "Why this task is needed now, why this specific type of task is needed. And a rough idea of what you plan to do after this task?"
                         }
                     },
-                    "required": ["tasks"]
+                    "required": ["task_to_do", "reason"],
+                    "additionalProperties": False
                 }
             }
         }
     ]
 
-def get_breakdown_system_prompt(completed_tasks: List[Dict[str, Any]] = None, completed_results: List[Dict[str, Any]] = None) -> str:
+def get_breakdown_system_prompt(tasks_completed: List[CompletedTask], tasks_results: List[CompletedTaskResult]) -> str:
     """
         Get the system prompt for query breakdown.
         
@@ -69,119 +57,89 @@ def get_breakdown_system_prompt(completed_tasks: List[Dict[str, Any]] = None, co
             completed_tasks: Optional list of tasks that have been completed
             completed_results: Optional list of results from completed tasks
     """
-    # Build completed tasks context if available
-    completed_context = ""
-    if completed_tasks and completed_results:
-        completed_context = "\nCompleted Tasks and Results:\n"
-        for task, result in zip(completed_tasks, completed_results):
-            try:
-                task_str = f"Task {task.get('task_id', '?')}: {task.get('task_to_do', 'Unknown task')}"
-                result_str = json.dumps(result, indent=2) if result else "No result"
-                completed_context += f"\n{task_str}\nResult: {result_str}\n"
-            except Exception as e:
-                print(f"Warning: Could not format task/result: {e}")
-                continue
-        completed_context += "\nPlease consider these completed tasks and their results when breaking down remaining work."
-
-    the_prompt = f"""You are an expert at breaking down complex queries into sequential tasks.
-        Your job is to analyze user queries and determine what tasks need to be done to answer them.
-        {completed_context} """ + """
-        CRITICAL: Task Optimization Rules
-        1. Smart Task Breakdown:
-        - Break down tasks when they involve different types of operations (SQL vs context vs aggregation)
-        - Break down when later tasks need to process results from earlier tasks
-        Example: "Compare YoY ADV for cash products"
-        → GOOD: Break into two tasks:
-            1. SQL task: Get ADV data for both years
-            2. Aggregation task: Calculate and format YoY comparison
-        
-        Example: "Get ADV for cash and credit products"
-        → BAD: Two separate SQL tasks
-        → GOOD: One SQL task with IN clause for asset_class
-        
-        2. Valid Reasons for Task Breakdown:
-        a) Different Query Types:
-            - When mixing numeric (SQL) and context (search) queries
-            Example: "What's the ADV trend and why did it change?"
-            → Needs breakdown: One SQL task + one context search task
-        
-        b) Sequential Dependencies:
-            - When later analysis needs results from earlier queries
-            Example: "Show products with above-average ADV"
-            → Needs breakdown: First get average, then filter using that value
-        
-        c) Complex Transformations:
-            - When data needs significant post-processing that can't be done in SQL
-            Example: "Calculate correlation between X and Y over time"
-            → Needs breakdown: Get raw data first, then process
-        
-        3. Task Structure and Order:
-        - Each task must have a unique task_id (starting from 1)
-        - Tasks are executed in order of task_id (smaller task_id first)
-        - Later tasks can build upon results from earlier tasks
-        
-        4. Task Components:
-        - task_id: Unique integer identifier
-        - task: Clear description of what to do
-        - reason: MUST explain why this can't be combined with other tasks
-        
-        Example Good Breakdowns:
-        
-        Query 1: "Compare YoY ADV for cash products in August 2024 vs 2025"
-        Tasks:
-        {
-        "tasks": [
-            {
-            "task_id": 1,
-            "task": "Get ADV data for cash products for August 2024 and 2025",
-            "reason": "Need raw ADV data for both years for comparison"
-            },
-            {
-            "task_id": 2,
-            "task": "Calculate and format YoY comparison",
-            "reason": "Need to process the raw data to show meaningful YoY changes"
-            }
-        ]
+    # Output Format String
+    output_format_str = """
+    OUTPUT FORMAT:  
+        A JSON object with a list of tasks:  
+        {  
+        "tasks": [  
+            { "task_to_do": "...", "reason": "..." },  
+            { "task_to_do": "...", "reason": "..." }  
+        ]  
         }
-        
-        Query 2: "What's our market share in credit products and why did it change?"
-        Tasks:
-        {
-        "tasks": [
-            {
-            "task_id": 1,
-            "task": "Calculate market share for credit products",
-            "reason": "Need base numeric data before we can analyze changes"
-            },
-            {
-            "task_id": 2,
-            "task": "Search for context about credit market share changes",
-            "reason": "Requires different query type (context) and can use task 1's data"
-            }
-        ]
-        }
-        
-        Example Bad Breakdown (Don't Do This):
-        Query: "Get ADV for US and EU products"
-        Tasks: Don't split into separate US/EU tasks - use a single SQL query with region IN ('us', 'eu')
     """
+
+    # Ask to consider the completed tasks
+    completed_tasks_ask = "\nPlease consider these completed tasks and their results when breaking down remaining work.\n"
+
+    # Build completed tasks context if available
+    tasks_completed_info = common_utils.get_completed_tasks_info(tasks_completed, tasks_results)
+
+    task_breakdown_eg_str = common_utils.get_task_breakdown_eg_str()
+    mar_table_schema_str = common_utils.get_mar_table_schema_str()
+    available_products_str = common_utils.get_available_products_str()
+    pr_available_in_storage_str = common_utils.get_pr_available_in_storage_str()
+
+    the_prompt = f"""You are the QueryBreaker.  
+Your job is to look into a user query and refer to the completed tasks and their results to break remaining work into the **next minimal atomic task(s)** needed to answer it.
+You not necessarily will see completed tasks everytime, becuase it could be the beginning of the query handling process.
+
+You must output one task, with these fields:
+- task_to_do: what needs to be done (one atomic action)  
+- reason: Why do you plan to do this task? And a rough idea of what you plan to do after this task?
+
+CRITICAL RULES:
+
+1. **No Repetition**  
+   - Never repeat tasks already in ### tasks_completed ###.  
+   - If the needed result already exists, skip and move on (or output AGGREGATION if ready).
+
+2. **Next Step Only**  
+   - Output exactly one atomic task at a time.  
+   - Each task must be minimal and self-contained.  
+   - Later tasks will be proposed in future turns, after this one is done.
+
+3. **Breakdown Principles**  
+   - Use a single task if multiple values can be retrieved together (e.g., one SQL query with IN).  
+   - Split only if the next step you might imagine about requires a different type of operation (SQL vs Context vs Aggregation) or depends on new results.  
+   - If all required inputs are available, propose an AGGREGATION task.
+
+4. **Minimality**  
+   - Do not over-split.  
+   - Propose only what is strictly necessary for the next step.
+
+------
+### OUTPUT FORMAT ###
+{output_format_str}
+------
+
+### tasks_completed ###
+{completed_tasks_ask}
+{tasks_completed_info}
+------
+
+------
+### Some Examples of tasks_completed ###
+{task_breakdown_eg_str}
+------
+
+------
+### For your information below is the table we can run SQL on and the available products catalog ###
+{mar_table_schema_str}
+{available_products_str}
+{pr_available_in_storage_str}    
+------
+"""
     return the_prompt
 
 def break_down_query(
     query: str,
-    completed_tasks: List[Dict[str, Any]] = None,
-    completed_results: List[Dict[str, Any]] = None
+    completed_tasks: List[Dict[str, Any]] = [],
+    completed_results: List[Dict[str, Any]] = [],
 ) -> List[BreakdownQueryResult]:
     """
-    Break down a user query into sequential tasks.
-    
-    Args:
-        query: The user's query
-        completed_tasks: Optional list of tasks that have been completed
-        completed_results: Optional list of results from completed tasks
-        
-    Returns:
-        List of tasks with their reasons, in execution order
+    Call the QueryBreaker to get ONE next atomic task.
+    Returns [] on any failure so the caller can choose a user-facing fallback.
     """
     try:
         # Get tools and prompt
@@ -190,105 +148,62 @@ def break_down_query(
 
         # Build user message with completed tasks context
         user_message = query
-        if completed_tasks and completed_results:
+        if len(completed_tasks) > 0 and len(completed_results) > 0:
             user_message = f"""Original Query: {query}
-                            Please break down the remaining work needed, considering the tasks already completed."""
-        
-        # Call OpenAI
-        logger.info("Calling OpenAI with:")
-        logger.info(f"System prompt length: {len(system_prompt)}")
-        logger.info(f"User message: {user_message}")
-        
-        response = call_openai(system_prompt, user_message, tools)
-        
-        logger.info("Got OpenAI response")
-        if response.choices and response.choices[0].message.tool_calls:
-            logger.info("Response has tool calls")
-            logger.info(f"Tool call arguments: {response.choices[0].message.tool_calls[0].function.arguments}")
-        else:
-            logger.info("Response has no tool calls")
+                            Please break down the remaining work needed for completing the query, please consider the tasks that already completed and never repeat the tasks that already done."""
 
-        # Parse response
-        if not response.choices[0].message.tool_calls:
-            return [BreakdownQueryResult(
-                task_id=1,
-                task_to_do="Maybe your question is not related to MAR trading volumes or press releases? I wasn’t able to identify clear tasks to break down. Please provide more details so I can better assist you. :)",
-                reason="Just can't figure it out."
-            )]
+        # Prefer forcing tool usage if your wrapper supports tool_choice
+        tools = get_breakdown_tools()
+        response = call_openai(
+            system_prompt,
+            user_message,
+            tools=tools,
+            tool_choice={"type": "function", "function": {"name": "break_down_query"}}  # safe if your wrapper passes through
+        )
 
-        # Extract tasks
-        try:
-            result = response.choices[0].message.tool_calls[0].function.arguments
-            data = json.loads(result)
-            
-            if not isinstance(data, dict) or "tasks" not in data:
-                return [BreakdownQueryResult(
-                    task_id=1,
-                    task_to_do="Invalid response format",
-                    reason="Missing tasks array"
-                )]
-                
-            # Validate task IDs
-            task_ids = set()
-            tasks = []
-            for task in data["tasks"]:
-                if not isinstance(task, dict):
-                    continue
-                    
-                try:
-                    task_id = int(task.get("task_id", 0))
-                    task_desc = str(task.get("task", ""))
-                    reason = str(task.get("reason", ""))
-                    
-                    if task_id <= 0 or not task_desc or not reason:
-                        continue
-                        
-                    if task_id in task_ids:
-                        continue
-                        
-                    task_ids.add(task_id)
-                    tasks.append(BreakdownQueryResult(
-                        task_id=task_id,
-                        task_to_do=task_desc,
-                        reason=reason
-                    ))
-                except (ValueError, TypeError):
-                    continue
-                    
-            if not tasks:
-                return [BreakdownQueryResult(
-                    task_id=1,
-                    task_to_do="Could not parse any valid tasks",
-                    reason="Invalid task data format"
-                )]
+        results = _parse_tool_call_to_result(response)
+        if not results:
+            logger.warning("QueryBreaker produced no valid next task.")
+        return results
 
-            return tasks
-                
-        except json.JSONDecodeError:
-            return [BreakdownQueryResult(
-                task_id=1,
-                task_to_do="Invalid JSON response",
-                reason="Could not parse OpenAI response"
-            )]
-        
-        return tasks
-        
     except Exception as e:
-        logger.error(f"Error breaking down query: {str(e)}")
-        logger.error("Response content:", exc_info=True)
-        
-        # Create a safe error message
-        error_msg = "Error analyzing query"
-        try:
-            error_details = str(e)
-            if len(error_details) > 100:  # Truncate very long error messages
-                error_details = error_details[:100] + "..."
-            error_msg = f"Error: {error_details}"
-        except:
-            pass  # Keep the default error message if formatting fails
-            
-        return [BreakdownQueryResult(
-            task_id=1,
-            task_to_do=error_msg,
-            reason="An error occurred while processing the query"
-        )]
+        logger.error(f"Error in break_down_query: {e}", exc_info=True)
+        return []
+
+
+def _parse_tool_call_to_result(response) -> List[BreakdownQueryResult]:
+    """
+    Parse OpenAI tool call into BreakdownQueryResult list (length 1).
+    Returns [] if parsing fails.
+    """
+    try:
+        choice = response.choices[0]
+        msg = choice.message
+        tool_calls = getattr(msg, "tool_calls", None) or []
+        if not tool_calls:
+            # fallback: try content as JSON if model replied inline (rare)
+            content = (msg.content or "").strip()
+            if content:
+                try:
+                    data = json.loads(content)
+                    if isinstance(data, dict) and "task_to_do" in data and "reason" in data:
+                        return [BreakdownQueryResult(task_to_do=data["task_to_do"], reason=data["reason"])]
+                except json.JSONDecodeError:
+                    logger.warning("Model returned non-tool, non-JSON content for QueryBreaker.")
+            return []
+
+        # Use the first tool call named break_down_query
+        tc = next((tc for tc in tool_calls if tc.function.name == "break_down_query"), tool_calls[0])
+        args_raw = tc.function.arguments or "{}"
+        data = json.loads(args_raw)
+
+        task = data.get("task_to_do", "").strip()
+        reason = data.get("reason", "").strip()
+        if task and reason:
+            return [BreakdownQueryResult(task_to_do=task, reason=reason)]
+        else:
+            logger.warning(f"Tool args missing fields: {data}")
+            return []
+    except Exception:
+        logger.exception("Failed to parse QueryBreaker tool call.")
+        return []

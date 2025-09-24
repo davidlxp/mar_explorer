@@ -17,6 +17,13 @@ import services.crawler as crawler
 import services.ai_workflow.mar_orchestrator as mar_orchestrator
 # from services.ai_workflow.utils.common_utils import load_available_products, get_mar_table_schema, execute_sql_query, execute_vector_query
 import services.task_handle_mar as task_handle_mar
+import services.ai_workflow.utils.common_utils as common_utils
+from services.db import get_database
+from services.ai_workflow.agents.query_breaker import break_down_query
+
+
+
+db = get_database()
 
 if __name__ == "__main__":
 
@@ -63,9 +70,9 @@ if __name__ == "__main__":
 
     # the_query = "YoY comparison of ADV for cash products for August, comparing 2025 to 2024"
 
-    the_query = "What's our market share in credit products and why did it change?"
-    tasks = mar_orchestrator.handle_user_query(user_query=the_query)
-    print(tasks)
+    # the_query = "What's our market share in credit products and why did it change?"
+    # tasks = mar_orchestrator.handle_user_query(user_query=the_query)
+    # print(tasks)
 
     # the_query = "Hi!"
     # tasks = mar_orchestrator.handle_user_query(user_query=the_query)
@@ -77,6 +84,19 @@ if __name__ == "__main__":
     # print(info)
     # print(info.result.hits[0].fields['report_name'])
     # print(info.result.hits[0].fields['url'])
+
+    # print(common_utils.get_mar_table_schema_str())
+
+    # print(common_utils.execute_sql_query("SELECT DISTINCT year FROM mar_combined_m"))
+
+
+    # print(common_utils.get_pr_available_in_storage_str())
+    
+    completed_tasks = []
+    completed_results = []
+    query = "What is the total trading volume of Tradeweb in August 2025?"
+    results = break_down_query(query, completed_tasks, completed_results)
+    print(results)
 
     pass
 

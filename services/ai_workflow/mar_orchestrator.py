@@ -18,6 +18,7 @@ from services.ai_workflow.utils.common_utils import (
 )
 from services.constants import MAR_TABLE_PATH
 import services.task_handle_mar as task_handle_mar
+from services.ai_workflow.data_model import CompletedTask, CompletedTaskResult
 
 # Configure logging
 logging.basicConfig(
@@ -36,6 +37,15 @@ def handle_user_query(user_query: str) -> AnswerPacket:
     """
     # Maximum try times
     max_try_times = 10
+
+    # All lists to track activities
+    tasks_completed: List[CompletedTask] = []
+    tasks_results: List[CompletedTaskResult] = []
+    tasks_results_confidence: List[float] = []
+    tasks_results_confidence_reason: List[str] = []
+    tasks_tried_times: List[int] = []
+    things_you_tried: List[str] = []
+    references = []
     
     # Track completed tasks and their results
     completed_tasks: List[Dict[str, Any]] = []
@@ -62,14 +72,11 @@ def handle_user_query(user_query: str) -> AnswerPacket:
         
         # If no tasks returned, we're done
         if not breakdown_results:
-            if not completed_tasks:
-                return AnswerPacket(
-                    text="Sorry, I couldn't figure out how to process your query.",
-                    citations=[],
-                    confidence=0.0
-                )
-            # Return aggregated results
-            return aggregate_results(user_query, completed_tasks, completed_results)
+            return AnswerPacket(
+                text=":( Sorry, I wasn’t able to identify the next step to do and complete the query. Please try again.",
+                citations=[],
+                confidence=0.0
+            )
             
         # Get the task with minimum task_id
         current_task = min(breakdown_results, key=lambda x: x.task_id)
