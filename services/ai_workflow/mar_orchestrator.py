@@ -215,4 +215,12 @@ def _process_tasks(user_query: str) -> AnswerPacket:
         # If the last task was AGGREGATION, aggregate and return
         if tasks_completed[-1].todo_intent == TodoIntent.AGGREGATION:
             all_task_info_str = contruct_task_info_str_for_aggregator(tasks_completed, tasks_results)
-            return aggregate_results(user_query, all_task_info_str)
+            agg_result = aggregate_results(user_query, all_task_info_str)
+
+            if DEBUG_MODE:
+                print("="*100)
+                print("agg_result")
+                print(agg_result)
+                print("="*100)
+
+            return agg_result
