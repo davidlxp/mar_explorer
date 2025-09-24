@@ -67,7 +67,10 @@ class ChatManager:
             
             # Get AI response
             with st.spinner("Thinking..."):
-                answer_packet = handle_user_query(prompt)
+                answer_packet = handle_user_query(
+                    user_query=prompt, 
+                    history=st.session_state.messages
+                )
                 
                 # Create assistant response
                 response_msg = {
