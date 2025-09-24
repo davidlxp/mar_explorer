@@ -35,7 +35,7 @@ if __name__ == "__main__":
     # test_runs.test_run_parse_pr_m()
 
     # test_runs.test_run_ingest_all_pr_md_in_storage()
-    test_runs.test_run_ingest_one_pr_md_file()
+    # test_runs.test_run_ingest_one_pr_md_file()
 
     # test_runs.test_run_query_pr_index_count()
 
@@ -69,9 +69,9 @@ if __name__ == "__main__":
     # tasks = mar_orchestrator.handle_user_query(user_query=the_query)
     # print(tasks)
 
-    # the_query = "Hi!"
-    # tasks = mar_orchestrator.handle_user_query(user_query=the_query)
-    # print(tasks)
+    the_query = "Hi!"
+    tasks = mar_orchestrator.handle_user_query(user_query=the_query)
+    print(tasks)
 
 
     # info = submit_sql_query("SELECT * FROM mar_combined_m LIMIT 10")
