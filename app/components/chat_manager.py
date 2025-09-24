@@ -54,7 +54,7 @@ class ChatManager:
                 st.session_state.messages = []
             
             # Keep only last 10 messages
-            if len(st.session_state.messages) >= 20:  # 10 pairs of messages
+            if len(st.session_state.messages) >= 40:  # 20 pairs of messages
                 st.session_state.messages = st.session_state.messages[-19:]  # Keep last 19 to add new one
             
             # Add user message to chat and display immediately
