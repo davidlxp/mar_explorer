@@ -75,13 +75,38 @@ def load_available_products():
 
     return products
 
-def execute_sql_query(query: str) -> str:
+# def execute_sql_query(query: str) -> str:
+#     """
+#     Submit a SQL query to the database and return the result.
+#     """
+#     rows, columns = db.fetchall_with_columns(query)
+#     result = [columns] + rows
+#     return result
+
+
+def execute_sql_query(query: str):
     """
     Submit a SQL query to the database and return the result.
+    A solution that will convert float to int if the value is a whole number.
     """
     rows, columns = db.fetchall_with_columns(query)
-    result = [columns] + rows
+
+    def coerce_int(value):
+        # Only convert floats/strings that look like whole numbers
+        if isinstance(value, float) and value.is_integer():
+            return int(value)
+        if isinstance(value, str) and value.isdigit():
+            return int(value)
+        return value
+
+    cleaned_rows = [
+        tuple(coerce_int(v) for v in row)
+        for row in rows
+    ]
+
+    result = [columns] + cleaned_rows
     return result
+
 
 def execute_vector_query(query: str) -> str:
     """

@@ -76,8 +76,8 @@ if __name__ == "__main__":
     # print(tasks)
 
 
-    # info = execute_sql_query("SELECT * FROM mar_combined_m LIMIT 10")
-    info = execute_sql_query("SELECT SUM(volume) as total_volume FROM mar_explorer.main.mar_combined_m WHERE year = 2025 AND month = 8;")
+    info = execute_sql_query("SELECT * FROM mar_combined_m LIMIT 100")
+    # info = execute_sql_query("SELECT SUM(volume) as total_volume FROM mar_explorer.main.mar_combined_m WHERE year = 2025 AND month = 8;")
     # info = execute_vector_query("US Government bond decline reason in August 2025?")
     print(info)
     # print(info.result.hits[0].fields['report_name'])
