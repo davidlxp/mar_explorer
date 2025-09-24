@@ -10,6 +10,7 @@ from typing import List, Dict, Any, Optional
 class TodoIntent(str, Enum):
     NUMERIC = "numeric"
     CONTEXT = "context"
+    CALCULATION = "calculation"
     AGGREGATION = "aggregation"
 
 @dataclass
@@ -38,18 +39,6 @@ class PlanningResult:
     helper_for_action: Optional[str] = None  # SQL query or vector search query or None
 
 @dataclass
-class CompletedTask:
-    """Information about a completed task."""
-    task_to_do: str
-    todo_intent: TodoIntent
-    helper_for_action: Optional[str] = None  # SQL query or vector search query or None
-
-@dataclass
-class CompletedTaskResult:
-    """Result of a completed task."""
-    result: Any
-
-@dataclass
 class SqlResult:
     """Result of executing a SQL query."""
     rows: List[Dict[str, Any]]
@@ -61,15 +50,25 @@ class ContextChunk:
     """Information about a context chunk from vector search."""
     id: str
     text: str
-    meta: Dict[str, Any]
-    score: float
+    report_type: str
+    report_name: str
+    text: str
+    url: str
+    relevance_score: float
 
 @dataclass
 class RetrievalResult:
     """Result of a context query against Vector Database."""
     chunks: List[ContextChunk]
-    confidence: float
-    strategy: str
+
+@dataclass
+class ExecutionOutput:
+    """Unified wrapper for all task results."""
+    intent: str                 # "numeric" | "context" | "aggregation"
+    content: Any                # actual result (SQL table, RetrievalResult, dict, etc.)
+    raw_query: Optional[str]    # SQL string, search query, or None
+    reference: Optional[str]
+    error: Optional[str] = None
 
 @dataclass
 class CalculatorResult:
@@ -83,10 +82,35 @@ class ValidatorOpinion:
     confidence_reason: str
 
 @dataclass
+class InputForValidator:
+    """Input for the validator."""
+    org_query: str
+    task_done: str
+    task_reason: str
+    task_intent: TodoIntent
+    task_approach: str
+    task_result: str
+
+@dataclass
 class ValidatorResult:
     """Result of the validator."""
     confidence: float
     confidence_reason: str
+
+@dataclass
+class CompletedTask:
+    """Information about a completed task."""
+    task_to_do: str
+    todo_intent: TodoIntent
+    task_reason: str
+    helper_for_action: Optional[str] = None  # SQL query or vector search query or None
+
+@dataclass
+class CompletedTaskResult:
+    """Result of a completed task."""
+    result: Any
+    reference: str
+    validator_confidence: float
 
 @dataclass
 class AnswerPacket:
@@ -94,3 +118,4 @@ class AnswerPacket:
     text: str
     citations: List[Dict[str, Any]]
     confidence: float
+    confidence_reason: str

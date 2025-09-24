@@ -29,18 +29,18 @@ def get_plan_query_action_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "analyze_query",
-                "description": "Analyze one task and decide if it's numeric (SQL), context (vector search), or aggregation.",
+                "description": "Analyze one task and decide if it's numeric (SQL), context (vector search), aggregation, or calculation.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "todo_intent": {
                             "type": "string",
-                            "enum": ["numeric", "context", "aggregation"],
-                            "description": "Action type: SQL query, vector search, or aggregation."
+                            "enum": ["numeric", "context", "aggregation", "calculation"],
+                            "description": "Action type: SQL query, vector search, aggregation, or calculation."
                         },
                         "helper_for_action": {
                             "type": ["string", "null"],
-                            "description": "SQL query for numeric; search string for context; null if aggregation."
+                            "description": "SQL query for numeric; search string for context; null if aggregation; math expression for calculation."
                         }
                     },
                     "required": ["todo_intent", "helper_for_action"],
@@ -51,8 +51,6 @@ def get_plan_query_action_tools() -> List[Dict[str, Any]]:
     ]
 
 def get_plan_query_action_system_prompt() -> str:
-    
-    # Get data
     schema_str = common_utils.get_mar_table_schema_str()
     products_str = common_utils.get_available_products_str()
     sql_examples_str = common_utils.get_sql_eg_plan_query_action()
@@ -60,8 +58,8 @@ def get_plan_query_action_system_prompt() -> str:
     
     return f"""
 You are the Task Planner. Your job is to analyze ONE task and output:
-- todo_intent: 'numeric', 'context', or 'aggregation'
-- helper_for_action: SQL (if numeric), search query (if context), null if aggregation
+- todo_intent: 'numeric', 'context', 'aggregation', or 'calculation'
+- helper_for_action: SQL (if numeric), search query (if context), null if aggregation, math expression (string) if calculation.
 
 Rules:
 - For numeric: generate valid Snowflake SQL against the schema provided below.
@@ -69,6 +67,13 @@ Rules:
   * All string literals lowercase.
 - For context: produce a precise natural language search string for press releases.
 - For aggregation: set helper_for_action to null.
+- For calculation: 
+  * Generate a safe, explicit math expression using numbers from previous results or the current task.
+  * Good Example: (2500 - 2200) / 2200 * 100
+  * Bad Example 1: 2500 - / 2200 (malformed, invalid operator sequence)
+  * Bad Example 2: (growth_rate * revenue) (ambiguous variable names, not concrete numbers)
+  * Avoid ambiguous symbols; use *, /, +, - only.
+  * Always resolve percentages into decimals (e.g. 15% → 0.15).
 
 ### Schema ###
 {schema_str}
@@ -82,6 +87,7 @@ Rules:
 ### Press Releases Available in Storage ###
 {pr_available_in_storage_str}
 """
+
 
 def plan_query_action(task: BreakdownQueryResult) -> PlanningResult:
     try:

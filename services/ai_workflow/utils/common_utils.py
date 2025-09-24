@@ -6,13 +6,22 @@ Tools for processing and validating query responses.
 import json
 from typing import Dict, Any, Optional, Union, List
 from pathlib import Path
-from services.constants import MAR_TABLE_PATH
-from services.ai_workflow.data_model import TableSchema
+from services.constants import MAR_TABLE_PATH, NO_TASKS_COMPLETED_YET
+from services.ai_workflow.data_model import TableSchema, InputForValidator, TodoIntent, BreakdownQueryResult, PlanningResult
 from services.db import get_database
 from services.vectorstores import pinecone_store
 from services.ai_workflow.data_model import CompletedTask, CompletedTaskResult
 import os
 from services.constants import PR_FILES_FOLDER_PATH_STR
+from services.ai_workflow.data_model import ContextChunk, RetrievalResult
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 db = get_database()
 
@@ -142,12 +151,12 @@ def get_sql_eg_plan_query_action() -> str:
         - Product dimensions: asset_class, product_type, product (all VARCHAR)
         """
     
-def get_completed_tasks_info(tasks_completed: List[CompletedTask], tasks_results: List[CompletedTaskResult]) -> str:    
+def get_completed_tasks_info(tasks_completed: List[CompletedTask] = [], tasks_results: List[CompletedTaskResult] = []) -> str:    
     """
     Get the information of completed tasks.
     """
     if len(tasks_completed) == 0 or len(tasks_results) == 0:
-        return "NO TASKS COMPLETED YET"
+        return NO_TASKS_COMPLETED_YET
     
     tasks_info = []
     for i in range(len(tasks_completed)):
@@ -221,3 +230,65 @@ def get_pr_available_in_storage_str() -> str:
         Press Releases Available in Storage:
         {file_names}
     """
+
+def parse_pinecone_response(response: Dict[str, Any]) -> RetrievalResult:
+    """Parse Pinecone search response into RetrievalResult."""
+    try:
+        hits = response.get("result", {}).get("hits", [])
+        chunks: List[ContextChunk] = []
+
+        for hit in hits:
+            fields = hit.get("fields", {})
+            chunks.append(
+                ContextChunk(
+                    id=hit.get("_id", ""),
+                    text=fields.get("text", ""),
+                    report_type=str(fields.get("report_type", "")),
+                    report_name=str(fields.get("report_name", "")),
+                    url=fields.get("url", ""),
+                    relevance_score=float(hit.get("_score", 0.0))
+                )
+            )
+        return RetrievalResult(chunks=chunks)
+    except Exception as e:
+        logger.error(f"Error in parse_pinecone_response: {e}", exc_info=True)
+        return """ Failed to parse Pinecone response """
+
+def construct_input_for_validator(org_query: str, breakdown_result: BreakdownQueryResult, plan: PlanningResult, task_result: str) -> InputForValidator:
+    """
+    Construct the input for the validator.
+    """
+    return InputForValidator(
+        org_query=org_query,
+        task_done=breakdown_result.task_to_do,
+        task_reason=breakdown_result.reason,
+        task_intent=plan.todo_intent,
+        task_approach=plan.helper_for_action,
+        task_result=task_result)
+
+def contruct_task_info_str_for_aggregator(tasks: CompletedTask, tasks_result: CompletedTaskResult) -> str:
+    '''
+    Construct the task info for the aggregator.
+    '''
+    output = """
+    Below are the tasks the other agents have completed and their results. You should use them to aggregate a final response tailored to the user's query.
+    """
+
+    for task, task_result in zip(tasks, tasks_result):
+        output += f"""
+    Task: {task.task_to_do}
+    Task reason: {task.task_reason}
+    Task type: {task.todo_intent}
+    Helper that used for the task: {task.helper_for_action} (SQL query for NUMERIC; vector search query against press releases for CONTEXT; math expression for CALCULATION)
+    Task result: {task_result}
+    Task reference: {task.reference}
+    """
+
+    output += """
+    This is the task that you should do:
+    Task: {tasks[-1].task_to_do}
+    Task reason: {tasks[-1].task_reason}
+    Task type: {tasks[-1].todo_intent}
+    """
+    return output
+

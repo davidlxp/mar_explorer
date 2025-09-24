@@ -13,6 +13,7 @@ import logging
 from services.ai_workflow.data_model import CompletedTask, CompletedTaskResult
 import services.ai_workflow.utils.common_utils as common_utils
 import json
+from services.constants import NO_TASKS_COMPLETED_YET
 
 model = MAR_ORCHESTRATOR_MODEL
 
@@ -50,7 +51,7 @@ def get_breakdown_tools() -> List[Dict[str, Any]]:
         }
     ]
 
-def get_breakdown_system_prompt(tasks_completed: List[CompletedTask], tasks_results: List[CompletedTaskResult]) -> str:
+def get_breakdown_system_prompt(prior_tasks_info: str) -> str:
     """
         Get the system prompt for query breakdown.
         
@@ -72,9 +73,6 @@ def get_breakdown_system_prompt(tasks_completed: List[CompletedTask], tasks_resu
 
     # Ask to consider the completed tasks
     completed_tasks_ask = "\nPlease consider these completed tasks and their results when breaking down remaining work.\n"
-
-    # Build completed tasks context if available
-    tasks_completed_info = common_utils.get_completed_tasks_info(tasks_completed, tasks_results)
 
     task_breakdown_eg_str = common_utils.get_task_breakdown_eg_str()
     mar_table_schema_str = common_utils.get_mar_table_schema_str()
@@ -116,7 +114,7 @@ CRITICAL RULES:
 
 ### tasks_completed ###
 {completed_tasks_ask}
-{tasks_completed_info}
+{prior_tasks_info}
 ------
 
 ------
@@ -135,8 +133,7 @@ CRITICAL RULES:
 
 def break_down_query(
     query: str,
-    completed_tasks: List[Dict[str, Any]] = [],
-    completed_results: List[Dict[str, Any]] = [],
+    prior_tasks_info: str
 ) -> BreakdownQueryResult:
     """
     Call the QueryBreaker to get ONE next atomic task.
@@ -145,11 +142,11 @@ def break_down_query(
     try:
         # Get tools and prompt
         tools = get_breakdown_tools()
-        system_prompt = get_breakdown_system_prompt(completed_tasks, completed_results)
+        system_prompt = get_breakdown_system_prompt(prior_tasks_info)
 
         # Build user message with completed tasks context
         user_message = query
-        if len(completed_tasks) > 0 and len(completed_results) > 0:
+        if prior_tasks_info != NO_TASKS_COMPLETED_YET:
             user_message = f"""Original Query: {query}
                             Please break down the remaining work needed for completing the query, please consider the tasks that already completed and never repeat the tasks that already done."""
 
