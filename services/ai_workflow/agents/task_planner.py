@@ -65,7 +65,23 @@ Rules:
 - For numeric: generate valid Snowflake SQL against the schema provided below.
   * For asset_class, product, product_type, only use values from product catalog.
   * All string literals lowercase.
-- For context: produce a precise natural language search string for press releases.
+  * Always generate exactly **ONE valid, safe Snowflake SQL quer** per task.
+  * If multiple values are required (e.g., compare 2024 vs 2025), use a single query with GROUP BY, UNION ALL, or an IN clause.
+  * Never return multiple SQL statements separated by semicolons.
+  * Good Example:
+    SELECT year, SUM(volume) AS total_volume
+    FROM mar_explorer.main.mar_combined_m
+    WHERE year IN (2024, 2025) AND month = 8
+    GROUP BY year;
+  * Bad Example:
+    SELECT ... WHERE year=2024;
+    SELECT ... WHERE year=2025;
+- For context tasks:
+  * Always generate exactly ONE clear and focused natural language search string for press releases.
+  * Never output multiple queries joined with commas, "and", "or", or semicolons.
+  * If multiple distinct searches are needed, the Query Breaker should create multiple tasks — you must handle only one here.
+  * The search string should be precise and professional, using plain finance/business language, not SQL syntax.
+  * The goal is to retrieve a relevant passage from press releases that answers the user’s task.
 - For aggregation: set helper_for_action to null.
 - For calculation: 
   * Generate exactly **one safe, explicit math expression** per task.
