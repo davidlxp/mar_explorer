@@ -68,6 +68,10 @@ Rules:
 - For context: produce a precise natural language search string for press releases.
 - For aggregation: set helper_for_action to null.
 - For calculation: 
+  * Generate exactly **one safe, explicit math expression** per task.
+  * If multiple calculations are needed, create separate calculation tasks instead of combining them with commas.
+  * Example (good): (2500 - 2200) / 2200 * 100
+  * Example (bad): (2500 - 2200) / 2200 * 100, (3000 - 2500) / 2500 * 100
   * Generate a safe, explicit math expression using numbers from previous results or the current task.
   * Good Example: (2500 - 2200) / 2200 * 100
   * Bad Example 1: 2500 - / 2200 (malformed, invalid operator sequence)
