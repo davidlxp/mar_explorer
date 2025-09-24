@@ -9,11 +9,11 @@
 # from services import task_handle_pr
 # import asyncio
 import services.crawler as crawler
-# import tests.test_runs as test_runs
+import tests.test_runs as test_runs
 # import services.utils as utils
 # import os
 # from services.constants import *
-# from services.vectorstores import pinecone_store
+from services.vectorstores import pinecone_store
 import services.ai_workflow.mar_orchestrator as mar_orchestrator
 # from services.ai_workflow.utils.common_utils import load_available_products, get_mar_table_schema, execute_sql_query, execute_vector_query
 import services.task_handle_mar as task_handle_mar
@@ -57,19 +57,21 @@ if __name__ == "__main__":
     # the_query = "What is the total trading volume of Tradeweb in August 2025?"
     # the_query = "Why did Aug 2025 differ from Aug 2026?"
     # the_query = "What is ADV for Credit in Aug 2025?"
-    the_query = "What is ADV for cash productsin Aug 2025?"
+    # the_query = "What is ADV for cash productsin Aug 2025?"
 
     # the_query = "What is ADV for cash productsin Aug 2025? And how about for credit?"
 
     # the_query = "YoY comparison of ADV for cash products for August, comparing 2025 to 2024"
 
-    the_query = "US Government bond decline reason in August 2025?"
-    tasks = mar_orchestrator.handle_user_query(user_query=the_query)
-    print(tasks)
+    # the_query = "US Government bond decline reason in August 2025?"
 
-    # the_query = "Hi!"
+    # the_query = "Hello, how are you?"
     # tasks = mar_orchestrator.handle_user_query(user_query=the_query)
     # print(tasks)
+
+    the_query = "Hi!"
+    tasks = mar_orchestrator.handle_user_query(user_query=the_query)
+    print(tasks)
 
 
     # info = submit_sql_query("SELECT * FROM mar_combined_m LIMIT 10")
@@ -79,7 +81,3 @@ if __name__ == "__main__":
     # print(info.result.hits[0].fields['url'])
 
     pass
-
-
-
-

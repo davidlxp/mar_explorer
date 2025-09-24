@@ -54,7 +54,7 @@ class ChatManager:
                 st.session_state.messages = []
             
             # Keep only last 10 messages
-            if len(st.session_state.messages) >= 20:  # 10 pairs of messages
+            if len(st.session_state.messages) >= 40:  # 20 pairs of messages
                 st.session_state.messages = st.session_state.messages[-19:]  # Keep last 19 to add new one
             
             # Add user message to chat and display immediately
@@ -67,7 +67,10 @@ class ChatManager:
             
             # Get AI response
             with st.spinner("Thinking..."):
-                answer_packet = handle_user_query(prompt)
+                answer_packet = handle_user_query(
+                    user_query=prompt, 
+                    history=st.session_state.messages
+                )
                 
                 # Create assistant response
                 response_msg = {

@@ -114,6 +114,12 @@ class SnowflakeDB(Database):
     
     def fetchall(self, query: str, params: Optional[tuple] = None):
         return self.run_query(query, params).fetchall()
+
+    def fetchall_with_columns(self, query: str, params: Optional[tuple] = None):
+        cursor = self.run_query(query, params)
+        rows = cursor.fetchall()
+        columns = [desc[0] for desc in cursor.description]
+        return rows, columns
     
     def fetchdf(self, query: str, params: Optional[tuple] = None):
         cur = self.conn.cursor()

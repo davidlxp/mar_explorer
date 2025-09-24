@@ -1,6 +1,11 @@
 """CSS styles for the application"""
 
 STYLES = """
+    /* Global font settings */
+    * {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
     /* General button styling */
     .stButton > button {
         background-color: #4CAF50;

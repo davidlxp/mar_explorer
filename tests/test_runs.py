@@ -23,6 +23,15 @@ PR_URLs = [
     "https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-second-quarter-2025-financial-results/"
 ]
 
+PROD_PR_URLs = [
+    'https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-august-2025-total-trading-volume-of--$54.1-trillion-and-average-daily-volume-of-$2.5-trillion',
+    'https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-july-2025-total-trading-volume-of--$55.0-trillion-and-average-daily-volume-of-$2.4-trillion',
+    'https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-second-quarter-2025-financial-results/',
+    'https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-june-2025-total-trading-volume-of--$52.0-trillion-and-average-daily-volume-of-$2.4-trillion',
+    'https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-may-2025-total-trading-volume-of--$55.4-trillion-and-average-daily-volume-of-$2.5-trillion',
+    'https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-april-2025-total-trading-volume-of--$57.8-trillion-and-average-daily-volume-of-$2.7-trillion'
+]
+
 PR_AND_NOISE_URLs = [
     "https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-august-2025-total-trading-volume-of--$54.1-trillion-and-average-daily-volume-of-$2.5-trillion",
     "https://www.tradeweb.com/newsroom/media-center/news-releases/tradeweb-reports-july-2025-total-trading-volume-of--$55.0-trillion-and-average-daily-volume-of-$2.4-trillion",
@@ -102,14 +111,14 @@ def test_run_fetch_press_release():
 
 def test_run_fetch_many_press_releases():
     logger.info("Running test_run_fetch_many_press_releases")
-    asyncio.run(task_pr.fetch_many_press_releases(PR_AND_NOISE_URLs))
+    asyncio.run(task_pr.fetch_many_press_releases(PROD_PR_URLs))
 
 def test_run_ingest_one_pr_md_file():
 
     logger.info("Running test_run_parse_pr_m")
 
     # file_name = 'tradeweb_reports-monthly-2019_02'
-    file_name = 'tradeweb_reports-monthly-2025_08'
+    file_name = 'tradeweb_reports-monthly-2025_06'
     # file_name = 'tradeweb_reports-monthly-2023_05'
     # file_name = 'tradeweb_reports-quarterly-2025_q2'
     # file_name = 'tradeweb_reports-yearly-2021'

@@ -13,6 +13,14 @@ from services.ai_workflow.data_model import (
     AnswerPacket
 )
 from services.ai_workflow.utils.openai_utils import call_openai
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 def get_aggregator_tools() -> List[Dict[str, Any]]:
     """Get the function schema for result aggregation."""
@@ -27,187 +35,131 @@ def get_aggregator_tools() -> List[Dict[str, Any]]:
                     "properties": {
                         "answer": {
                             "type": "string",
-                            "description": "The final answer text that combines all task results"
+                            "description": "Final answer text that directly addresses the user's query"
                         },
                         "citations": {
                             "type": "array",
-                            "description": "List of citations for data sources used",
+                            "description": "Citations for data sources used",
                             "items": {
                                 "type": "object",
                                 "properties": {
-                                    "source": {
-                                        "type": "string",
-                                        "description": "Source of the data (e.g. 'SQL', 'VectorDB')"
-                                    },
-                                    "reference": {
-                                        "type": "string",
-                                        "description": "Reference details (e.g. SQL query, search query)"
-                                    }
+                                    "source": {"type": "string"},
+                                    "reference": {"type": "string"}
                                 },
                                 "required": ["source", "reference"]
                             }
                         },
                         "confidence": {
                             "type": "number",
-                            "description": "Confidence score between 0 and 1 for the aggregated answer",
+                            "description": "Confidence score between 0 and 1",
                             "minimum": 0,
                             "maximum": 1
+                        },
+                        "confidence_reason": {
+                            "type": "string",
+                            "description": "Reasoning for the confidence score"
                         }
                     },
-                    "required": ["answer", "citations", "confidence"]
+                    "required": ["answer", "citations", "confidence", "confidence_reason"],
+                    "additionalProperties": False
                 }
             }
         }
     ]
 
-def get_aggregator_system_prompt() -> str:
+def get_aggregator_system_prompt(all_task_info_str: str) -> str:
     """Get the system prompt for result aggregation."""
-    return """You are an expert at aggregating and presenting financial data analysis results.
-    Your job is to combine results from multiple tasks into a clear, concise, and accurate answer.
+    return f"""
+You are an expert at aggregating and presenting financial data analysis results.
+Your job is to combine results from multiple tasks into a clear, concise, and accurate answer.
+Your audience is finance professionals who may not have a technical background.
 
-    Guidelines for Aggregation:
+Guidelines:
+1. Always ground your answer in provided task results — never hallucinate.
+2. For volume or ADV which pulled by SQL from database, assume values are in Million USD unless specified otherwise. For example, if the ADV or volume result from SQL is 54,101,86, it means 54,101,86 Million USD.
+3. For data you got from press releases, please follow the scale and unit of data mentioned in the press release.
+4. Please please please don't look at the number wrong... For example, if a data is pulled from database table 54,101,86, do NOT look at it as "54,101.860", where the "," is replaced by ".". This is wrong.
+5. Compute overall confidence as the average of task confidences, and explain your reasoning.
+6. If data is insufficient, explain what was tried and invite the user to refine their query. Mention that you welcome their follow-up and you will try your best.
+7. Citations:
+   - For NUMERIC:
+     * Always cite BOTH the MAR website URL and the SQL query (if the URL was present in task reference).
+     * If multiple tasks used the same SQL or URL, deduplicate and cite only once.
+   - For CONTEXT:
+     * Cite the report name + URL + the specific text snippet that directly supports the answer (highlight exact phrase if possible).
+   - For CALCULATION:
+     * Cite the explicit math expression used.
+   - For AGGREGATION:
+     * No direct citation required.
 
-    1. Result Types You'll Handle:
-       - SQL Results: Contain numeric data from database queries
-       - Vector Search Results: Contain contextual information from documents
-       - Previous Task Results: May need to reference or build upon earlier findings
+Example Good Output:
+Answer: "The ADV for credit products rose 15% YoY to $25.3B in Aug 2025, driven by electronic trading adoption."
+Citations: [
+  {{"source":"SQL","reference":"URL: https://www.tradeweb.com/... | SQL: SELECT SUM(adv)..."}},
+  {{"source":"Press Release","reference":"URL: https://www.tradeweb.com/... | TEXT: 'credit volumes increased due to electronic trading adoption'"}}
+]
+Confidence: 0.85
+Confidence Reason: "Both SQL and PR results are consistent and strongly support the conclusion."
 
-    2. Answer Format:
-       - Start with the key findings/numbers
-       - Follow with supporting context or explanations
-       - Use clear, professional financial language
-       - Format numbers appropriately (e.g., millions as 'MM', billions as 'B')
-       - Include proper units (e.g., USD, %, bps)
+Example Bad Output:
+- Just raw numbers without explanation
+- Missing MAR website URL in SQL citation
+- Quoting entire PR chunk without highlighting relevant sentence
+- No reasoning for confidence
 
-    3. Confidence Scoring:
-       - Consider completeness of data
-       - Consider quality of each source
-       - Consider how well sources complement each other
-       - Lower confidence if data seems inconsistent
-       - Lower confidence if key information is missing
-
-    4. Citations:
-       - Include ALL sources used
-       - Reference specific queries or searches
-       - Note which parts of answer came from where
-
-    Example Good Aggregation:
-
-    Tasks:
-    1. SQL query for ADV data
-    2. Vector search for market changes
-    
-    Answer:
-    "The average daily volume (ADV) for credit products increased 15% YoY to $25.3B in August 2025. 
-    This growth was primarily driven by increased electronic trading adoption in the corporate bond 
-    market, particularly in investment grade securities."
-
-    Citations:
-    [
-        {
-            "source": "SQL",
-            "reference": "SELECT SUM(adv)... GROUP BY year"
-        },
-        {
-            "source": "VectorDB",
-            "reference": "Search: credit products market changes 2025"
-        }
-    ]
-
-    Confidence: 0.85 (strong data quality, consistent narrative)
-
-    Example Bad Aggregation (Don't Do This):
-    - Just listing raw numbers without context
-    - Missing citations
-    - Not explaining calculation methods
-    - Inconsistent number formatting
-    """
+### All Tasks Info ###
+{all_task_info_str}
+"""
 
 def aggregate_results(
     user_query: str,
-    completed_tasks: List[Dict[str, Any]],
-    task_results: Dict[int, Any]  # Maps task_id to SQL/Vector/Aggregation results
+    all_task_info_str: str
 ) -> AnswerPacket:
     """
     Aggregate results from multiple tasks into a final answer.
-    
-    Args:
-        user_query: The original user query
-        completed_tasks: List of completed tasks
-        task_results: Dictionary mapping task_id to its results
-        
-    Returns:
-        AnswerPacket containing the final answer
     """
     try:
-        # Format task results for the prompt
-        task_context = []
-
-        print("\n\n")
-        print("--------------------------------")
-        print("\n")
-        print(f"Completed tasks number: {len(completed_tasks)}")
-        print(f"Task result number: {len(task_results)}")
-        print("\n")
-        print("--------------------------------")
-        print("\n\n")
-
-        for i in range(len(completed_tasks)):
-            task = completed_tasks[i]
-
-            task_id = task["task_id"]
-            task_to_do = task["task_to_do"]
-            result = task_results[i]
-
-            curr_context = f""" Task {task_id}: The goal is to {str(task_to_do)}. The ToDoIntent is {str(task["todo_intent"])}. The result is {str(result)}. And the reference is {str(task["reference"])}.   """
-            task_context.append(curr_context)
-
-        # Build user message
         user_message = f"""Original Query: {user_query}
 
-                    Completed Tasks and Results:
-                    {task_context}
+In your system prompt, you will see the information of all completed tasks which are for answering the original query and their results.
+Please aggregate the results of all completed tasks into a clear, concise answer that directly addresses the original query.
+The key is making the response clear, concise andsuitable for finance professionals who may not have a technical background.
+The goal is to make the answer immediately understandable and useful to someone in a finance department.
+"""
 
-                    Please aggregate these results into a clear, concise answer that directly addresses the original query.
-                    The key is making the response clear, concise andsuitable for finance professionals who may not have a technical background.
-                    The goal is to make the answer immediately understandable and useful to someone in a finance department.
-
-                    If you see the system prompt metioned the reference, you should use those to populate the answer. Reference should be used as the final answer.
-                    
-                    For task that the ToDoIntent is NUMERIC, you cite both the MAR website URL and the SQL query.
-                    For task that the ToDoIntent is CONTEXT, you cite both the report name, URL and the text.
-
-                    If there are both numeric and context tasks, you should cite both of them.
-                    """
-
-        # Get tools and prompt
         tools = get_aggregator_tools()
-        system_prompt = get_aggregator_system_prompt()
-        
-        # Call OpenAI
-        response = call_openai(system_prompt, user_message, tools)
-        
-        # Parse response
+        system_prompt = get_aggregator_system_prompt(all_task_info_str)
+
+        response = call_openai(
+                    system_prompt,
+                    user_message,
+                    tools,
+                    tool_choice={"type": "function", "function": {"name": "aggregate_results"}}
+                    )
+
+
         if not response.choices[0].message.tool_calls:
             return AnswerPacket(
                 text="Error: Could not aggregate results.",
                 citations=[],
-                confidence=0.0
+                confidence=0.0,
+                confidence_reason="No tool call returned"
             )
-            
-        # Extract aggregation
+
         result = json.loads(response.choices[0].message.tool_calls[0].function.arguments)
-        
+
         return AnswerPacket(
-            text=result["answer"],
-            citations=result["citations"],
-            confidence=result["confidence"]
+            text=result.get("answer", "Error: No answer generated"),
+            citations=result.get("citations", []),
+            confidence=float(result.get("confidence", 0.0)),
+            confidence_reason=result.get("confidence_reason", "No reason provided")
         )
-        
+
     except Exception as e:
-        print(f"Error aggregating results: {str(e)}")
+        logger.error(f"Error aggregating results: {e}", exc_info=True)
         return AnswerPacket(
             text=f"Error aggregating results: {str(e)}",
             citations=[],
-            confidence=0.0
+            confidence=0.0,
+            confidence_reason="Exception thrown during aggregation"
         )

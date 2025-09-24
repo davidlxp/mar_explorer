@@ -20,6 +20,11 @@ class Database(ABC):
     def fetchall(self, query: str, params: Optional[tuple] = None) -> list:
         """Convenience method to return all rows."""
         pass
+    
+    @abstractmethod
+    def fetchall_with_columns(self, query: str, params: Optional[tuple] = None) -> tuple:
+        """Convenience method to return all rows and columns."""
+        pass
 
     @abstractmethod
     def fetchdf(self, query: str, params: Optional[tuple] = None) -> pd.DataFrame:
