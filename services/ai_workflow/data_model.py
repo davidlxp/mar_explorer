@@ -20,20 +20,21 @@ class TableSchema:
     description: str
 
 @dataclass
+class ReceptionResult:
+    """Result of receiving a query."""
+    next_step: str
+    next_step_content: str
+
+@dataclass
 class BreakdownQueryResult:
     """Information about a single task broken down from the query."""
-    task_id: int
     task_to_do: str
     reason: str
 
 @dataclass
 class PlanningResult:
     """Result of analyzing a single task."""
-    task_id: int
-    task_to_do: str
     todo_intent: TodoIntent
-    confidence: float
-    confidence_reason: str
     helper_for_action: Optional[str] = None  # SQL query or vector search query or None
 
 @dataclass
@@ -57,6 +58,24 @@ class RetrievalResult:
     chunks: List[ContextChunk]
     confidence: float
     strategy: str
+
+@dataclass
+class CalculatorResult:
+    """Result of the calculating agent."""
+    result: float
+
+@dataclass
+class ValidatorOpinion:
+    """Opinion of the validator."""
+    confidence_of_result: float
+    confidence_reason: str
+
+@dataclass
+class ValidatorResult:
+    """Result of the validator."""
+    opinion: ValidatorOpinion
+    confidence: float
+    confidence_reason: str
 
 @dataclass
 class AnswerPacket:

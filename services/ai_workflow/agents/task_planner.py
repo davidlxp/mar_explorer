@@ -7,7 +7,6 @@ from typing import Dict, Any, List
 import logging
 from services.ai_workflow.data_model import BreakdownQueryResult, PlanningResult, TodoIntent
 from services.ai_workflow.utils.common_utils import get_mar_table_schema, load_available_products
-from services.ai_workflow.agents.summarize_parent_plans import summarize_parent_plans
 from services.ai_workflow.utils.openai_utils import call_openai
 from services.ai_workflow.utils.common_utils import regularize_sql_query
 
@@ -154,13 +153,9 @@ def plan_query_action(task: BreakdownQueryResult, parent_plans: Dict[int, Planni
         products = load_available_products()
         sql_examples = get_sql_eg_plan_query_action()
         
-        # Get parent plan summary if available
-        parent_summary = summarize_parent_plans(task, parent_plans) if parent_plans else ""
-        parent_context = f"\nParent Task Context:\n{parent_summary}" if parent_summary else ""
-        
         # Get tools and prompt
         tools = get_plan_query_action_tools()
-        system_prompt = get_plan_query_action_system_prompt(schema, products, sql_examples) + parent_context
+        system_prompt = get_plan_query_action_system_prompt(schema, products, sql_examples)
 
         # Call OpenAI
         response = call_openai(system_prompt, task.task_to_do, tools)

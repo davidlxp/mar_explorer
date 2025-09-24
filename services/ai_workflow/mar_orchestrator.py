@@ -5,8 +5,8 @@ High-level orchestrator for handling MAR queries with Snowflake + Pinecone.
 
 import logging
 from typing import List, Dict, Any, Optional, Tuple
-from services.ai_workflow.agents.query_breakdown import break_down_query
-from services.ai_workflow.agents.plan_query_action import plan_query_action
+from services.ai_workflow.agents.query_breaker import break_down_query
+from services.ai_workflow.agents.task_planner import plan_query_action
 from services.ai_workflow.agents.aggregator import aggregate_results
 from services.ai_workflow.data_model import (
     TodoIntent, BreakdownQueryResult, PlanningResult, SqlResult,
