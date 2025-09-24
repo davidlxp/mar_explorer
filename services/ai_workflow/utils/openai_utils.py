@@ -11,7 +11,7 @@ from services.constants import MAR_ORCHESTRATOR_MODEL, MAR_TABLE_PATH
 client = OpenAI()
 model = MAR_ORCHESTRATOR_MODEL
 
-def call_openai(system_prompt: str, user_query: str, tools: List[Dict[str, Any]], tool_choice: Optional[Dict[str, Any]] = "Auto") -> Dict[str, Any]:
+def call_openai(system_prompt: str, user_query: str, tools: List[Dict[str, Any]], tool_choice: Optional[Dict[str, Any]] = "auto") -> Dict[str, Any]:
     """
     Make an OpenAI API call with function calling.
     

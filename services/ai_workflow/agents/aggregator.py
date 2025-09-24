@@ -121,7 +121,13 @@ The goal is to make the answer immediately understandable and useful to someone 
         tools = get_aggregator_tools()
         system_prompt = get_aggregator_system_prompt(all_task_info_str)
 
-        response = call_openai(system_prompt, user_message, tools)
+        response = call_openai(
+                    system_prompt,
+                    user_message,
+                    tools,
+                    tool_choice={"type": "function", "function": {"name": "aggregate_results"}}
+                    )
+
 
         if not response.choices[0].message.tool_calls:
             return AnswerPacket(
