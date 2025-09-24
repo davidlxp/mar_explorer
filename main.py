@@ -31,11 +31,11 @@ if __name__ == "__main__":
     # test_runs.test_run_ALL()
     # test_runs.test_run_crawler_one()
     # test_runs.test_run_fetch_press_release()
-    test_runs.test_run_fetch_many_press_releases()
+    # test_runs.test_run_fetch_many_press_releases()
     # test_runs.test_run_parse_pr_m()
 
     # test_runs.test_run_ingest_all_pr_md_in_storage()
-    # test_runs.test_run_ingest_one_pr_md_file()
+    test_runs.test_run_ingest_one_pr_md_file()
 
     # test_runs.test_run_query_pr_index_count()
 

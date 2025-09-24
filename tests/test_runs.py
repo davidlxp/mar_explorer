@@ -118,7 +118,7 @@ def test_run_ingest_one_pr_md_file():
     logger.info("Running test_run_parse_pr_m")
 
     # file_name = 'tradeweb_reports-monthly-2019_02'
-    file_name = 'tradeweb_reports-monthly-2025_08'
+    file_name = 'tradeweb_reports-monthly-2025_06'
     # file_name = 'tradeweb_reports-monthly-2023_05'
     # file_name = 'tradeweb_reports-quarterly-2025_q2'
     # file_name = 'tradeweb_reports-yearly-2021'
