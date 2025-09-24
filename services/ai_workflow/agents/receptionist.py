@@ -68,6 +68,7 @@ Rules:
 1. If query is unclear, incomplete, irrelevant, or outside available data (e.g. asks about pricing, forecasts, or datasets not listed), set:
    next_step = "follow_up_user"
    next_step_content = A concise clarification question or polite refusal.
+(However, please being some level of flexiblity, sometimes the user may ask you the reason of some change, they maybe available in the press releases that you see below. Yes, I know you don't have details on that, but sometimes, give it a tr.)
 
 2. If query is clear and supported by MAR/PR data, set:
    next_step = "start_task"
@@ -79,9 +80,6 @@ Examples:
 
 Query: "What was ADV in August?"
 → start_task: "Get ADV for all products in August 2025"
-
-Query: "Why is trading volume dropping in China?"
-→ follow_up_user: "Sorry, we don’t have China-specific data. We only cover the Tradeweb MAR Excel (ADV-M, Volume-M) and press releases. Could you reframe your question?"
 
 Query: "Show trend?"
 → follow_up_user: "Could you clarify which product and time range you’d like the trend for?"

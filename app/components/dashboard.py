@@ -46,14 +46,6 @@ class Dashboard:
             
             if dashboard_data and dashboard_data['figure'] is not None:
                 st.plotly_chart(dashboard_data['figure'], use_container_width=True)
-                
-                # Optional: Display raw data
-                if st.checkbox("Show raw data"):
-                    tab1, tab2 = st.tabs(["Monthly Trend", "Asset Class Breakdown"])
-                    with tab1:
-                        st.dataframe(dashboard_data['trend_data'])
-                    with tab2:
-                        st.dataframe(dashboard_data['asset_data'])
             else:
                 st.warning("No data to display. Please ensure you have selected at least one item for Product Type, Year, and Month filters.")
                 
