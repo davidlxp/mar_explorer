@@ -69,31 +69,23 @@ def handle_user_query(user_query: str) -> AnswerPacket:
             # Get the prior tasks info
             prior_tasks_info = get_completed_tasks_info(tasks_completed, tasks_results)
             # Get next set of tasks
-            breakdown_results = break_down_query(user_query, prior_tasks_info)
+            breakdown_result = break_down_query(user_query, prior_tasks_info)
 
             if DEBUG_MODE:
                 print("="*100)
-                print("breakdown_results")
-                print(breakdown_results)
+                print("breakdown_result")
+                print(breakdown_result)
                         
             # If no tasks returned, we're done
-            if not breakdown_results:
+            if not breakdown_result:
                 return AnswerPacket(
                     text=":( Sorry, I wasn’t able to identify the next step to do and complete the query. Please try again.",
                     citations=[],
                     confidence=0.0
                 )
 
-            # Get the current task
-            current_task = breakdown_results
-
-            if DEBUG_MODE:
-                print("="*100)
-                print("current_task")
-                print(current_task)
-
             # Plan the current task
-            plan = plan_query_action(current_task)
+            plan = plan_query_action(breakdown_result)
 
             if not plan:
                 return AnswerPacket(

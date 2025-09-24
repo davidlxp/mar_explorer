@@ -284,7 +284,7 @@ def contruct_task_info_str_for_aggregator(tasks: CompletedTask, tasks_result: Co
     Task type: {task.todo_intent}
     Helper that used for the task: {task.helper_for_action} (SQL query for NUMERIC; vector search query against press releases for CONTEXT; math expression for CALCULATION)
     Task result: {task_result}
-    Task reference: {task.reference}
+    Task reference: {task_result.reference}
     """
 
     output += """
